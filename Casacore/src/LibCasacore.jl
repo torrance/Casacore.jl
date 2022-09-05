@@ -1,7 +1,7 @@
-module CasaCore
+module LibCasacore
 
-using jlcasacore_jll
 using CxxWrap
+using jlcasacore_jll
 
 @wrapmodule(libjlcasacore)
 

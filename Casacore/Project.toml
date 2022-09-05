@@ -1,0 +1,17 @@
+name = "Casacore"
+uuid = "72bb1062-94f5-49fa-bb69-94b615203ad9"
+authors = ["Kirin Shila <me@kiranshila>", "Torrance Hodgson <torrance@pravic.xyz>", "and contributors"]
+version = "0.1.0"
+
+[deps]
+CxxWrap = "1f15a43c-97ca-5a2a-ae31-89f07a497df4"
+jlcasacore_jll = "288d454e-76cd-513d-9a6f-0ef9fadc4958"
+
+[compat]
+julia = "1.8"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
