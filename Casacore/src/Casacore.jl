@@ -1,5 +1,6 @@
 module Casacore
 
-include("LibCasacore.jl")
+include("libcasacore.jl")
+include("tables.jl")
 
 end
