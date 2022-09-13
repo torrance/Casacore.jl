@@ -97,8 +97,6 @@ function Base.getindex(c::Column{T, N, S}, I::Vararg{Union{Int, Colon, OrdinalRa
     I = map(x -> x .- 1, to_indices(c, I))
     shape = Base.index_shape(I...)
 
-    @show I shape
-
     rowslicer = LibCasacore.Slicer(I[end])
     cellslicer = LibCasacore.Slicer(I[1:(end - 1)]...)
     arrayslice = LibCasacore.getColumnRange(c.columnref, rowslicer, cellslicer)
