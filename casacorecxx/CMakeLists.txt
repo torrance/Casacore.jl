@@ -16,7 +16,7 @@ find_package(Casacore REQUIRED)
 
 # Add our library
 add_library(casacorecxx SHARED
-  src/tables.cpp)
+  src/casacorecxx.cpp)
 
 # Link to JLCxx and of course casa
 target_link_libraries(casacorecxx JlCxx::cxxwrap_julia JlCxx::cxxwrap_julia_stl ${CASACORE_LIBRARIES})
