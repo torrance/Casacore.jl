@@ -1,4 +1,4 @@
-project(jlcasacore)
+project(casacorecxx)
 
 cmake_minimum_required(VERSION 3.10)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
@@ -15,14 +15,14 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 find_package(Casacore REQUIRED)
 
 # Add our library
-add_library(jlcasacore SHARED
+add_library(casacorecxx SHARED
   src/tables.cpp)
 
 # Link to JLCxx and of course casa
-target_link_libraries(jlcasacore JlCxx::cxxwrap_julia JlCxx::cxxwrap_julia_stl ${CASACORE_LIBRARIES})
+target_link_libraries(casacorecxx JlCxx::cxxwrap_julia JlCxx::cxxwrap_julia_stl ${CASACORE_LIBRARIES})
 
 # Install
-install(TARGETS jlcasacore
+install(TARGETS casacorecxx
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
   RUNTIME DESTINATION lib

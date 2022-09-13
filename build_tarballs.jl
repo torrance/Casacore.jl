@@ -2,11 +2,11 @@
 # `julia build_tarballs.jl --help` to see a usage message.
 using BinaryBuilder, Pkg
 
-name = "jlcasacore"
+name = "casacorecxx"
 version = v"0.1.0"
 
 # Collection of sources required to complete build
-sources = [DirectorySource("jlcasacore")]
+sources = [DirectorySource("casacorecxx")]
 
 # Bash recipe for building across all platforms
 script = raw"""
@@ -29,7 +29,7 @@ platforms = [Platform("x86_64", "linux"; libc="glibc", julia_version="1.8")]
 platforms = expand_cxxstring_abis(platforms)
 
 # The products that we will ensure are always built
-products = Product[LibraryProduct("libjlcasacore", :libjlcasacore),]
+products = Product[LibraryProduct("libcasacorecxx", :libcasacorecxx),]
 
 # Dependencies that must be installed before this package can be built
 dependencies = [Dependency("libcxxwrap_julia_jll"),

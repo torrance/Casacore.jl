@@ -2,9 +2,9 @@ module LibCasacore
 import Base
 
 using CxxWrap
-using jlcasacore_jll
+using casacorecxx_jll
 
-@wrapmodule(libjlcasacore)
+@wrapmodule(libcasacorecxx)
 
 function __init__()
     @initcxx

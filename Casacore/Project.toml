@@ -5,7 +5,7 @@ version = "0.1.0"
 
 [deps]
 CxxWrap = "1f15a43c-97ca-5a2a-ae31-89f07a497df4"
-jlcasacore_jll = "288d454e-76cd-513d-9a6f-0ef9fadc4958"
+casacorecxx_jll = "689e2960-4160-5310-ae7f-2d2095288874"
 
 [compat]
 julia = "1.8"
