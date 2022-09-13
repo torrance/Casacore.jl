@@ -11,7 +11,8 @@ function __init__()
 end
 
 # Vector: implements iteration, indexing
-Base.length(x::Vector)::Int = shape(x)[1]
+Base.length(x::Vector)::Int = reduce(*, Base.size(x))
+Base.size(x::Vector)::Tuple{Int} = Tuple(shape(x)...)
 Base.getindex(x::Vector, i) = getindex(x, i - 1)
 Base.firstindex(::Vector) = 1
 Base.lastindex(x::Vector) = length(x)
@@ -32,7 +33,13 @@ function Base.iterate(x::Vector, i)
     return x[i], i
 end
 
-# IPosition: implements indexing
+# Array
+Base.length(x::Array)::Int = reduce(*, Base.size(x))
+function Base.size(x::Array)::NTuple{N, Int} where N
+    return Tuple(shape(x)...)
+end
+
+# IPosition: implements indexing, iteration
 IPosition(is::NTuple{N, Int}) where N = IPosition(N, is...)
 Base.length(x::IPosition)::Int = size(x)
 Base.getindex(x::IPosition, i) = getindex(x, i - 1)
@@ -117,7 +124,7 @@ function Slicer(is::Vararg{Union{Int, OrdinalRange}, N}) where N
 end
 
 function asarray(
-    x::Union{VectorAllocated{T}, ArrayAllocated{T}}, dims::NTuple{N, Int}
+    x::Union{VectorAllocated{T}, ArrayAllocated{T}}, dims::NTuple{N, Int}=Base.size(x)
 )::Base.Array{T, N} where {T, N}
     deleteIt = Ref{UInt8}()
     ptr = getStorage(x, deleteIt)
