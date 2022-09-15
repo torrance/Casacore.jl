@@ -37,6 +37,7 @@ mod.add_type<Table>("Table")
     .constructor()
     .constructor<const Table &>()
     .constructor<const String &>()
+    .constructor<const String &, Table::TableOption>()
     .constructor<const String &, Table::TableOption, const TSMOption &>()
     .constructor<const String &, const TableLock &, Table::TableOption, const TSMOption &>()
     .method("nrow", &Table::nrow)
@@ -60,17 +61,21 @@ mod.add_type<jlcxx::Parametric<jlcxx::TypeVar<1>>>("ScalarColumn")
         ScalarColumn<String>
     >([](auto wrapped) {
         typedef typename decltype(wrapped)::type WrappedT;
+        typedef typename decltype( std::declval<WrappedT>().getColumn() )::value_type T;
         wrapped.template constructor();
         wrapped.template constructor<const Table &, const String &>();
         wrapped.method("nrow", &TableColumn::nrow);
         wrapped.method("shapeColumn", &TableColumn::shapeColumn);
         wrapped.method("getindex", &WrappedT::operator());
+        wrapped.method("put", static_cast<void (WrappedT::*)(rownr_t, const T &)>(&WrappedT::put));
         wrapped.method("getColumn", [](const WrappedT & wrappedT) { return wrappedT.getColumn(); });
         wrapped.method(
             "getColumnRange",
-            [](const WrappedT & wrappedT, const Slicer & rowRange) {
-                return wrappedT.getColumnRange(rowRange);
-            }
+            static_cast<Vector<T> (WrappedT::*)(const Slicer &) const>(&WrappedT::getColumnRange)
+        );
+        wrapped.method(
+            "putColumnRange",
+            static_cast<void (WrappedT::*)(const Slicer &, const Vector<T> &)>(&WrappedT::putColumnRange)
         );
     });
 
@@ -91,6 +96,7 @@ mod.add_type<jlcxx::Parametric<jlcxx::TypeVar<1>>>("ArrayColumn")
         ArrayColumn<String>
     >([](auto wrapped) {
         typedef typename decltype(wrapped)::type WrappedT;
+        typedef typename decltype( std::declval<WrappedT>().getColumn() )::value_type T;
         wrapped.template constructor();
         wrapped.template constructor<const Table &, const String &>();
         wrapped.method("nrow", &TableColumn::nrow);
@@ -99,8 +105,11 @@ mod.add_type<jlcxx::Parametric<jlcxx::TypeVar<1>>>("ArrayColumn")
         wrapped.method("getColumn", [](const WrappedT & wrappedT) { return wrappedT.getColumn(); });
         wrapped.method(
             "getColumnRange",
-            [](const WrappedT & wrappedT, const Slicer & rowRange, const Slicer & arraySection) {
-                return wrappedT.getColumnRange(rowRange, arraySection);
-            }
+            static_cast<Array<T> (WrappedT::*)(const Slicer &, const Slicer &) const>(&WrappedT::getColumnRange)
+        );
+        wrapped.method("put", static_cast<void (WrappedT::*)(rownr_t, const Array<T> &)>(&WrappedT::put));
+        wrapped.method(
+            "putColumnRange",
+            static_cast<void (WrappedT::*)(const Slicer &, const Slicer &, const Array<T> &)>(&WrappedT::putColumnRange)
         );
     });

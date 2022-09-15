@@ -51,90 +51,163 @@ end
 
 Base.length(c::Column) = reduce(*, size(c))
 
+@inline function checkbounds(x::Column{T, N}, I::Vararg{Union{Int, Colon, OrdinalRange}, M}) where {T, N, M}
+    if N != M
+        throw(DimensionMismatch("Indexing into $(N)-dimensional Column with $(M) indices"))
+    end
+
+    Base.checkbounds_indices(Bool, axes(x), I) || throw(BoundsError(x, I))
+end
+
 # Required for to_indices() to work
 Base.eachindex(::IndexLinear, A::Column) = (@inline; Base.oneto(length(A)))
 
 # Scalar array indexing
-function Base.getindex(c::Column{T, 1, S}, i::Int)::T where {T, S <: LibCasacore.ScalarColumn}
-    return LibCasacore.getindex(c.columnref, i)
+function Base.getindex(c::Column{T, 1, S}, i::Union{Int, Colon, OrdinalRange}) where {T, S <: LibCasacore.ScalarColumn}
+    @boundscheck checkbounds(c, i)
+    i, = to_indices(c, (i,))
+
+    rowslicer = LibCasacore.Slicer(i .- 1)
+    arrayslice = LibCasacore.getColumnRange(c.columnref, rowslicer)
+
+    shape = length.(Base.index_shape(i))
+    zerodim_as_scalar(LibCasacore.asarray(arrayslice, shape))
+end
+
+function Base.setindex!(c::Column{T, 1, S}, v, i::Union{Int, Colon, OrdinalRange}) where {T, S <: LibCasacore.ScalarColumn}
+    @boundscheck checkbounds(c, i)
+    i, = to_indices(c, (i,))
+
+    varray = collect(T, v)
+    Base.setindex_shape_check(varray, length(i))
+
+    GC.@preserve varray begin
+        vectorslice = LibCasacore.Vector{T}(
+            LibCasacore.IPosition(Tuple(length(i))),
+            varray,
+            LibCasacore.SHARE
+        )
+        rowslicer = LibCasacore.Slicer(i .- 1)
+        LibCasacore.putColumnRange(c.columnref, rowslicer, vectorslice)
+    end
+
+    return v
 end
 
 # Array of arrays indexing
-function Base.getindex(c::Column{T, 1, S}, i::Int)::T where {T, S <: LibCasacore.ArrayColumn}
-    arrayslice = LibCasacore.getindex(c.columnref, i)
-    shape = Tuple(LibCasacore.shape(arrayslice)...)
-    LibCasacore.asarray(arrayslice, length.(shape))
+function Base.getindex(c::Column{T, 1, S}, i::Int)::T where {T <: Array, S <: LibCasacore.ArrayColumn}
+    @boundscheck checkbounds(c, i)
+    arrayslice = LibCasacore.getindex(c.columnref, i - 1)
+    return LibCasacore.asarray(arrayslice, size(arrayslice))
+end
+
+function Base.getindex(c::Column{T, 1, S}, i::Union{Colon, OrdinalRange})::Vector{T} where {T <: Array, S <: LibCasacore.ArrayColumn}
+    @boundscheck checkbounds(c, i)
+    i, = to_indices(c, (i,))
+    return map(i) do i
+        @inbounds c[i]
+    end
+end
+
+function Base.setindex!(c::Column{T, 1, S}, v, i::Int)::T where {T <: Array, S <: LibCasacore.ArrayColumn}
+    @boundscheck checkbounds(c, i)
+
+    varray = collect(eltype(T), v)
+    GC.@preserve varray begin
+        arrayslice = LibCasacore.Array{eltype(T)}(
+            LibCasacore.IPosition(size(v)),
+            varray,
+            LibCasacore.SHARE
+        )
+        LibCasacore.put(c.columnref, i - 1, arrayslice)
+    end
+    return v
+end
+
+function Base.setindex!(c::Column{T, 1, S}, v, i::Union{Int, Colon, OrdinalRange}) where {T <: Array, S <: LibCasacore.ArrayColumn}
+    @boundscheck checkbounds(c, i)
+    i, = to_indices(c, (i,))
+    for (idx, val) in zip(i, v)
+        @inbounds c[idx] = val
+    end
+    return v
 end
 
 # Multidimensional array indexing
-function Base.getindex(c::Column{T, N, S}, I::Vararg{Int, N})::T where {T, N, S <: LibCasacore.ArrayColumn}
-    Irow, Icell... = I .- 1
-    array = LibCasacore.getindex(c.columnref, Irow)
+function Base.getindex(c::Column{T, N, S}, I::Vararg{Union{Int, Colon, OrdinalRange}, M}) where {T, N, M, S <: LibCasacore.ArrayColumn}
+    # We have to do a little extra work if we are forcing a multidim index
+    # into an array with no fixed size
+    if N == 1 && T <: Array
+        Icell, Irow = I[begin:end - 1], I[end]
+        @boundscheck checkbounds(c, Irow)
 
-    Icell = LibCasacore.IPosition(Icell)
-    return LibCasacore.getindex(array, Icell)[]
-end
+        Irow, = to_indices(c, (Irow,))
+        if Colon() in Icell
+            throw(ArgumentError("A column with no fixed size cannot be indexed with ':' except along the rows."))
+        end
 
-# Scalar array slicing
-function Base.getindex(c::Column{T, 1, S}, i::Union{Colon, OrdinalRange}) where {T, S <: LibCasacore.ScalarColumn}
-    i = to_indices(c, (i,))[1] .- 1
-    shape = Base.index_shape(i)
-
-    rowslicer = LibCasacore.Slicer(i)
-    arrayslice = LibCasacore.getColumnRange(c.columnref, rowslicer)
-
-    LibCasacore.asarray(arrayslice, length.(shape))
-end
-
-# Array of arrays slicing
-function Base.getindex(c::Column{T, 1, S}, i::Union{Colon, OrdinalRange}) where {T, S <: LibCasacore.ArrayColumn}
-    i = to_indices(c, (i,))[1] .- 1
-    return getindex.((c,), i)
-end
-
-# Multimdimensional array slicing
-function Base.getindex(c::Column{T, N, S}, I::Vararg{Union{Int, Colon, OrdinalRange}, N}) where {T, N, S <: LibCasacore.ArrayColumn}
-    I = map(x -> x .- 1, to_indices(c, I))
-    shape = Base.index_shape(I...)
-
-    rowslicer = LibCasacore.Slicer(I[end])
-    cellslicer = LibCasacore.Slicer(I[1:(end - 1)]...)
-    arrayslice = LibCasacore.getColumnRange(c.columnref, rowslicer, cellslicer)
-
-    LibCasacore.asarray(arrayslice, length.(shape))
-end
-
-# Forced multimdimensional slicing on column without fixed size
-# Colon indexing is not an option here since we don't know ahead of time the size of cells
-function Base.getindex(
-    c::Column{T, 1, S},
-    i1::Union{Int, Colon, OrdinalRange},
-    i2::Union{Int, Colon, OrdinalRange},
-    I::Vararg{Union{Int, Colon, OrdinalRange}, N}
-) where {T, N, S <: LibCasacore.ArrayColumn}
-    I = (i1, i2, I...)
-
-    if Colon() in I[1:(end - 1)]
-        throw(ArgumentError("A column with no fixed size cannot be indexed with ':' except along the rows."))
+        I =  (Icell..., Irow)
+    else
+        @boundscheck checkbounds(c, I...)
+        I = to_indices(c, I)
     end
 
-    I = map(x -> x .- 1, to_indices(c, I))
-    shape = Base.index_shape(I...)
-
+    # 0- to 1-based indexing
+    I = map(x -> x .- 1, I)
     rowslicer = LibCasacore.Slicer(I[end])
     cellslicer = LibCasacore.Slicer(I[1:(end - 1)]...)
+
     arrayslice = LibCasacore.getColumnRange(c.columnref, rowslicer, cellslicer)
 
-    LibCasacore.asarray(arrayslice, length.(shape))
+    shape = length.(Base.index_shape(I...))
+    zerodim_as_scalar(LibCasacore.asarray(arrayslice, shape))
+end
+
+function Base.setindex!(c::Column{T, N, S}, v, I::Vararg{Union{Int, Colon, OrdinalRange}, M}) where {T, N, M, S <: LibCasacore.ArrayColumn}
+    # We have to do a little extra work if we are forcing a multidim index
+    # into an array with no fixed size
+    if N == 1 && T <: Array
+        Icell, Irow = I[begin:end - 1], I[end]
+        @boundscheck checkbounds(c, Irow)
+
+        Irow, = to_indices(c, (Irow,))
+        if Colon() in Icell
+            throw(ArgumentError("A column with no fixed size cannot be indexed with ':' except along the rows."))
+        end
+
+        I =  (Icell..., Irow)
+    else
+        @boundscheck checkbounds(c, I...)
+        I = to_indices(c, I)
+    end
+
+    varray = collect(eltype(T), v)
+    Base.setindex_shape_check(varray, length.(I)...)
+
+    # 1- to 0-based indexing
+    I = map(x -> x .- 1, I)
+    rowslicer = LibCasacore.Slicer(I[end])
+    cellslicer = LibCasacore.Slicer(I[1:(end - 1)]...)
+
+    GC.@preserve varray begin
+        arrayslice = LibCasacore.Array{eltype(T)}(
+            LibCasacore.IPosition(length.(I)), varray, LibCasacore.SHARE
+        )
+        LibCasacore.putColumnRange(c.columnref, rowslicer, cellslicer, arrayslice)
+    end
+
+    return v
 end
 
 mutable struct Table
     tableref::LibCasacore.TableAllocated
     columns::Vector{Column}
 
-    function Table(path)
+    function Table(path; readonly=true)
         path = LibCasacore.String(path)
-        tableref = LibCasacore.Table(path)
+
+        tableoption = readonly ? LibCasacore.Old : LibCasacore.Update
+        tableref = LibCasacore.Table(path, tableoption)
 
         # Add columns
         tabledesc = LibCasacore.tableDesc(tableref)
@@ -156,5 +229,15 @@ function Base.getindex(x::Table, name::Symbol)
 end
 
 Base.keys(x::Table) = [col.name for col in x.columns]
+
+flush(x::Table; fsync=true, recursive=true) = LibCasacore.flush(x.tableref, fsync, recursive)
+
+function zerodim_as_scalar(x::Array{T, 0}) where T
+    return x[]
+end
+
+function zerodim_as_scalar(x)
+    return x
+end
 
 end

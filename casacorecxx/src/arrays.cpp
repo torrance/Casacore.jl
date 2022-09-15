@@ -14,6 +14,11 @@ mod.set_const("endIsLast", Slicer::endIsLast);
 mod.add_type<Slicer>("Slicer")
     .constructor<const IPosition &, const IPosition &, const IPosition &, Slicer::LengthOrLast>();
 
+mod.add_bits<StorageInitPolicy>("StorageInitPolicy", jlcxx::julia_type("CppEnum"));
+mod.set_const("COPY", COPY);
+mod.set_const("TAKE_OVER", TAKE_OVER);
+mod.set_const("SHARE", SHARE);
+
 mod.add_type<jlcxx::Parametric<jlcxx::TypeVar<1>>>("Vector")
     .apply<
         Vector<Bool>,
@@ -33,6 +38,8 @@ mod.add_type<jlcxx::Parametric<jlcxx::TypeVar<1>>>("Vector")
         typedef typename decltype(wrapped)::type WrappedT;
         typedef typename WrappedT::value_type T;
         wrapped.template constructor();
+        wrapped.template constructor<const IPosition &>();
+        wrapped.template constructor<const IPosition &, T*, StorageInitPolicy>();
         wrapped.method("shape", &Array<T>::shape);
         wrapped.method("getindex", static_cast<const T & (WrappedT::*)(size_t) const >(&WrappedT::operator[]));
         wrapped.method("tovector", static_cast<std::vector<T> (WrappedT::*)(void) const>(&Array<T>::tovector));
@@ -59,6 +66,8 @@ mod.add_type<jlcxx::Parametric<jlcxx::TypeVar<1>>>("Array")
         typedef typename decltype(wrapped)::type WrappedT;
         typedef typename WrappedT::value_type T;
         wrapped.template constructor();
+        wrapped.template constructor<const IPosition &>();
+        wrapped.template constructor<const IPosition &, T*, StorageInitPolicy>();
         wrapped.method("shape", &WrappedT::shape);
         wrapped.method("getindex", static_cast<WrappedT (WrappedT::*)(size_t) const >(&WrappedT::operator[]));
         wrapped.method("getindex", static_cast<const T & (WrappedT::*)(const IPosition &) const>(&WrappedT::operator()));
