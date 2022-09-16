@@ -63,7 +63,9 @@ data = weightcol[1:4, :] <: Matrix{Float64}
 
 So many things...
 
-* Provide column metadata objects, which can then be used to...
-* Create columns
-* Add row functionality
+* Allow memory reuse when indexing into columns (e.g. copy!(), maybe with view())
+* Create table
+* Create columns from arrays or other columns
+* Fix type conversions for Bool, Int64
+* Add/delete rows functionality
 * Measures

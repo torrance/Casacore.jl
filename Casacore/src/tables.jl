@@ -2,6 +2,13 @@ module Tables
 
 using ..LibCasacore
 
+abstract type ColumnDesc{T, N} end
+struct ScalarColumnDesc{T} <: ColumnDesc{T, 0} end
+struct ArrayColumnDesc{T <: Array, N} <: ColumnDesc{T, N} end
+struct FixedArrayColumnDesc{T, N} <: ColumnDesc{T, N}
+    cellsize::NTuple{N, Int}
+end
+
 mutable struct Column{T, N, S}
     name::Symbol
     parent::LibCasacore.TableAllocated
@@ -199,36 +206,91 @@ function Base.setindex!(c::Column{T, N, S}, v, I::Vararg{Union{Int, Colon, Ordin
     return v
 end
 
-mutable struct Table
+struct Table
     tableref::LibCasacore.TableAllocated
-    columns::Vector{Column}
+end
 
-    function Table(path; readonly=true)
-        path = LibCasacore.String(path)
+function Table(path; readonly=true)
+    path = LibCasacore.String(path)
 
-        tableoption = readonly ? LibCasacore.Old : LibCasacore.Update
-        tableref = LibCasacore.Table(path, tableoption)
+    tableoption = readonly ? LibCasacore.Old : LibCasacore.Update
+    tableref = LibCasacore.Table(path, tableoption)
 
-        # Add columns
-        tabledesc = LibCasacore.tableDesc(tableref)
-        columnnames = LibCasacore.columnNames(tabledesc)
-        columns = [Column(tableref, columnname[]) for columnname in columnnames]
-
-        table = new(tableref, columns)
-        return table
-    end
+    return Table(tableref)
 end
 
 function Base.getindex(x::Table, name::Symbol)
-    for column in x.columns
-        if column.name == name
-            return column
-        end
+    if name in keys(x)
+        return Column(x.tableref, LibCasacore.String(name))
     end
     throw(KeyError(name))
 end
 
-Base.keys(x::Table) = [col.name for col in x.columns]
+function Base.setindex!(x::Table, v::ScalarColumnDesc{T}, name::Symbol) where {T, N}
+    if name in keys(x)
+        delete!(x, name)
+    end
+    LibCasacore.addColumn(
+        x.tableref,
+        LibCasacore.ColumnDesc(
+            LibCasacore.ScalarColumnDesc{T}(
+                LibCasacore.String(name),
+                zero(UInt32)
+            )
+        ),
+        true
+    )
+    return v
+end
+
+function Base.setindex!(x::Table, v::ArrayColumnDesc{T, N}, name::Symbol) where {T, N}
+    if name in keys(x)
+        delete!(x, name)
+    end
+    LibCasacore.addColumn(
+        x.tableref,
+        LibCasacore.ColumnDesc(
+            LibCasacore.ArrayColumnDesc{eltype(T)}(
+                LibCasacore.String(name),
+                N,
+                zero(UInt32)
+            )
+        ),
+        true
+    )
+    return v
+end
+
+function Base.setindex!(x::Table, v::FixedArrayColumnDesc{T, N}, name::Symbol) where {T, N}
+    if name in keys(x)
+        delete!(x, name)
+    end
+    LibCasacore.addColumn(
+        x.tableref,
+        LibCasacore.ColumnDesc(
+            LibCasacore.ArrayColumnDesc{T}(
+                LibCasacore.String(name),
+                LibCasacore.IPosition(v.cellsize),
+                reinterpret(UInt32, LibCasacore.ColumnFixedShape)
+            )
+        ),
+        true
+    )
+    return v
+end
+
+function Base.delete!(x::Table, name::Symbol)
+    if name in keys(x)
+        LibCasacore.removeColumn(x.tableref, LibCasacore.String(name))
+        return
+    end
+    throw(KeyError(name))
+end
+
+function Base.keys(x::Table)::Vector{Symbol}
+    tabledesc = LibCasacore.tableDesc(x.tableref)
+    return map(Symbol, LibCasacore.columnNames(tabledesc))
+end
 
 flush(x::Table; fsync=true, recursive=true) = LibCasacore.flush(x.tableref, fsync, recursive)
 

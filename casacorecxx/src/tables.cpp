@@ -1,5 +1,57 @@
+mod.add_bits<ColumnDesc::Option>("ColumnOption");
+mod.set_const("ColumnDirect", ColumnDesc::Direct);
+mod.set_const("ColumnUndefined", ColumnDesc::Undefined);
+mod.set_const("ColumnFixedShape", ColumnDesc::FixedShape);
+
+mod.add_type<BaseColumnDesc>("BaseColumnDesc");
+
+mod.add_type<jlcxx::Parametric<jlcxx::TypeVar<1>>>("ScalarColumnDesc", jlcxx::julia_base_type<BaseColumnDesc>())
+    .apply<
+        ScalarColumnDesc<Bool>,
+        ScalarColumnDesc<Char>,
+        ScalarColumnDesc<uChar>,
+        ScalarColumnDesc<Short>,
+        ScalarColumnDesc<uShort>,
+        ScalarColumnDesc<Int>,
+        ScalarColumnDesc<uInt>,
+        ScalarColumnDesc<Int64>,
+        ScalarColumnDesc<Float>,
+        ScalarColumnDesc<Double>,
+        ScalarColumnDesc<Complex>,
+        ScalarColumnDesc<DComplex>,
+        ScalarColumnDesc<String>
+    >([](auto wrapped) {
+        typedef typename decltype(wrapped)::type WrappedT;
+        wrapped.template constructor<const String &, int>();
+        wrapped.template constructor<const String &, const String &, int>();
+        wrapped.method("setDefault", &WrappedT::setDefault);
+    });
+
+mod.add_type<jlcxx::Parametric<jlcxx::TypeVar<1>>>("ArrayColumnDesc", jlcxx::julia_base_type<BaseColumnDesc>())
+    .apply<
+        ArrayColumnDesc<Bool>,
+        ArrayColumnDesc<Char>,
+        ArrayColumnDesc<uChar>,
+        ArrayColumnDesc<Short>,
+        ArrayColumnDesc<uShort>,
+        ArrayColumnDesc<Int>,
+        ArrayColumnDesc<uInt>,
+        ArrayColumnDesc<Int64>,
+        ArrayColumnDesc<Float>,
+        ArrayColumnDesc<Double>,
+        ArrayColumnDesc<Complex>,
+        ArrayColumnDesc<DComplex>,
+        ArrayColumnDesc<String>
+    >([](auto wrapped) {
+        wrapped.template constructor<const String &, Int, int>();
+        wrapped.template constructor<const String &, const String &, Int, int>();
+        wrapped.template constructor<const String &, const IPosition &, int>();
+        wrapped.template constructor<const String &, const String &, const IPosition &, int>();
+    });
+
 mod.add_type<ColumnDesc>("ColumnDesc")
     .constructor()
+    .constructor<const BaseColumnDesc &>()
     .method("name", &ColumnDesc::name)
     .method("dataType", &ColumnDesc::dataType)
     .method("trueDataType", &ColumnDesc::trueDataType)
@@ -42,7 +94,9 @@ mod.add_type<Table>("Table")
     .constructor<const String &, const TableLock &, Table::TableOption, const TSMOption &>()
     .method("nrow", &Table::nrow)
     .method("tableDesc", &Table::tableDesc)
-    .method("flush", &Table::flush);
+    .method("flush", &Table::flush)
+    .method("addColumn", static_cast<void (Table::*)(const ColumnDesc &, Bool)>(&Table::addColumn))
+    .method("removeColumn", static_cast<void (Table::*)(const String &)>(&Table::removeColumn));
 
 mod.add_type<jlcxx::Parametric<jlcxx::TypeVar<1>>>("ScalarColumn")
     .apply<

@@ -89,7 +89,7 @@ function gettype(x::DataType)
         TpUShort => UInt16,
         TpInt => Int32,
         TpUInt => UInt32,
-        TpInt64 => Int64,
+        TpInt64 => CxxLongLong,
         TpFloat => Float32,
         TpDouble => Float64,
         TpComplex => ComplexF32,
@@ -106,7 +106,7 @@ function gettype(x::DataType)
     throw(KeyError(typeof(x)))
 end
 
-Base.Symbol(x::String) = (Symbol ∘ unsafe_string ∘ LibCasacore.c_str)(x)
+@cxxdereference Base.Symbol(x::String) = (Symbol ∘ unsafe_string ∘ LibCasacore.c_str)(x)
 String(x::Symbol) = (String ∘ Base.String)(x)
 
 function Slicer(is::Vararg{Union{Int, OrdinalRange}, N}) where N
