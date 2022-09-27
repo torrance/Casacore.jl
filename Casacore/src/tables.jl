@@ -1,5 +1,7 @@
 module Tables
 
+export Table, ColumnDesc, subtables
+
 using ..LibCasacore
 
 abstract type ColumnDesc{T, N} end
@@ -219,6 +221,11 @@ function Table(path; readonly=true)
     return Table(tableref)
 end
 
+Base.size(x::Table)::Tuple{Int, Int} = (
+    LibCasacore.nrow(x.tableref),
+    LibCasacore.ncolumn(LibCasacore.tableDesc(x.tableref))
+)
+
 function Base.getindex(x::Table, name::Symbol)
     if name in keys(x)
         return Column(x.tableref, LibCasacore.String(name))
@@ -290,6 +297,34 @@ end
 function Base.keys(x::Table)::Vector{Symbol}
     tabledesc = LibCasacore.tableDesc(x.tableref)
     return map(Symbol, LibCasacore.columnNames(tabledesc))
+end
+
+function Base.propertynames(x::Table, private::Bool=false)
+    subtables = private ? [fieldnames(Table)...] : Symbol[]
+
+    keywords = LibCasacore.keywordSet(x.tableref)
+    for i in range(0, LibCasacore.size(keywords) - 1)
+        recordid = LibCasacore.RecordFieldId(i)
+        if LibCasacore.type(keywords, i) == LibCasacore.TpTable
+            push!(subtables, Symbol(LibCasacore.name(keywords, recordid)))
+        end
+    end
+
+    return tuple(subtables...)
+end
+
+function Base.getproperty(x::Table, name::Symbol)
+    if hasfield(Table, name)
+        return getfield(x, name)
+    end
+
+    if name in propertynames(x)
+        recordid = LibCasacore.RecordFieldId(LibCasacore.String(name))
+        keywords = LibCasacore.keywordSet(x.tableref)
+        return Table(LibCasacore.asTable(keywords, recordid))
+    end
+
+    return getfield(x, name)
 end
 
 flush(x::Table; fsync=true, recursive=true) = LibCasacore.flush(x.tableref, fsync, recursive)

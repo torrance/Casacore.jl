@@ -237,6 +237,15 @@ mod.add_type<jlcxx::Parametric<jlcxx::TypeVar<1>>>("ArrayColumnDesc", jlcxx::jul
         .method("getindex", static_cast<const ColumnDesc & (ColumnDescSet::*)(uInt) const>(&ColumnDescSet::operator[]))
         .method("ncolumn", &ColumnDescSet::ncolumn);
 
+    mod.add_type<RecordFieldId>("RecordFieldId")
+        .constructor<String &>()
+        .constructor<Int>();
+
+    mod.add_type<TableRecord>("TableRecord")
+        .method("name", &TableRecord::name)
+        .method("type", &TableRecord::type)
+        .method("size", &TableRecord::size);
+
     mod.add_type<TSMOption>("TSMOption");
 
     mod.add_type<TableLock>("TableLock")
@@ -268,7 +277,13 @@ mod.add_type<jlcxx::Parametric<jlcxx::TypeVar<1>>>("ArrayColumnDesc", jlcxx::jul
         .method("tableDesc", &Table::tableDesc)
         .method("flush", &Table::flush)
         .method("addColumn", static_cast<void (Table::*)(const ColumnDesc &, Bool)>(&Table::addColumn))
-        .method("removeColumn", static_cast<void (Table::*)(const String &)>(&Table::removeColumn));
+        .method("removeColumn", static_cast<void (Table::*)(const String &)>(&Table::removeColumn))
+        .method("keywordSet", &Table::keywordSet);
+
+    // Add TableRecord::asTable here, due to dependency on Table
+    mod.method("asTable", [](const TableRecord & rec, const RecordFieldId & id) {
+        return rec.asTable(id);
+    });
 
     mod.add_type<jlcxx::Parametric<jlcxx::TypeVar<1>>>("ScalarColumn")
         .apply<

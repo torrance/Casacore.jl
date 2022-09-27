@@ -16,6 +16,25 @@ Read/write access to tables and columns:
 using Casacore.Tables: Table
 
 table = Table("/path/to/my/table.ms", readonly=false)
+```
+
+### Subtables
+
+Access subtables as properties of the the `Table` object:
+
+```julia
+propertynames(table)  # => (:ANTENNA, :DATA_DESCRIPTION, ...)
+
+subtable = table.ANTENNA
+```
+
+Subtables are opened with the same locking and write attributes as their parents.
+
+### Columns
+
+Access columns as keys on the `Table` objects:
+
+```julia
 keys(table)  # => [:UVW, :WEIGHT, :DATA, ...]
 
 # Load a column
