@@ -1,6 +1,6 @@
 module Tables
 
-export Table, ColumnDesc, subtables
+export taql
 
 using ..LibCasacore
 
@@ -212,7 +212,7 @@ struct Table
     tableref::LibCasacore.TableAllocated
 end
 
-function Table(path; readonly=true)
+function Table(path::String; readonly=true)
     path = LibCasacore.String(path)
 
     tableoption = readonly ? LibCasacore.Old : LibCasacore.Update
@@ -328,6 +328,18 @@ function Base.getproperty(x::Table, name::Symbol)
 end
 
 flush(x::Table; fsync=true, recursive=true) = LibCasacore.flush(x.tableref, fsync, recursive)
+
+function taql(command::String, table::Table, tables::Vararg{Table})
+    tablesvec = LibCasacore.StdVector{LibCasacore.ConstCxxPtr{LibCasacore.Table}}()
+    for table in (table, tables...)
+        push!(tablesvec, Ref(LibCasacore.ConstCxxPtr(table.tableref)))
+    end
+
+    return Table(LibCasacore.tableCommand(
+        command,
+        tablesvec
+    ))
+end
 
 function zerodim_as_scalar(x::Array{T, 0}) where T
     return x[]

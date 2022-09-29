@@ -78,13 +78,27 @@ However, if you _know_ that that your column with no fixed size actually contain
 data = weightcol[1:4, :] <: Matrix{Float64}
 ```
 
-## Still to do
+### TaQL
 
-So many things...
+Casascore implements a query language that allows selecting, sorting, filtering and joining tables to produce derived tables, as described in [Note 199](https://casacore.github.io/casacore-notes/199.html). With the exception of `CALC` operations, this is available by calling `taql(command, table1, [table2, ...])`. For example:
+
+```julia
+derived = taql(
+    raw"SELECT max(ANTENNA1, ANTENNA2) as MAXANT FROM $1 WHERE ANTENNA1 <> ANTENNA2 AND NOT FLAG_ROW",
+    table
+)
+
+size(derived[:MAXANT]) == (228780,)
+```
+
+Command accepts a standard Julia `String`, however note that in this case we've prefixed the string with `raw"..."` which stops Julia attempting to interpolate the `$1` table identifier. If you use a standard string literal, ensure such identifiers are properly escaped.
+
+## Still to do
 
 * Allow memory reuse when indexing into columns (e.g. copy!(), maybe with view())
 * Create table
 * Create columns from arrays or other columns
 * Fix type conversions for Bool, Int64
 * Add/delete rows functionality
+* Table keywords (?)
 * Measures

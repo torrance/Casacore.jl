@@ -3,6 +3,7 @@
 
 #include <casacore/casa/Utilities.h>
 #include <casacore/tables/Tables.h>
+#include <casacore/tables/TaQL.h>
 
 using namespace casacore;
 
@@ -354,4 +355,8 @@ mod.add_type<jlcxx::Parametric<jlcxx::TypeVar<1>>>("ArrayColumnDesc", jlcxx::jul
                 static_cast<void (WrappedT::*)(const Slicer &, const Slicer &, const Array<T> &)>(&WrappedT::putColumnRange)
             );
         });
+
+    mod.method("tableCommand", [](std::string command, std::vector<const Table*> tables) -> Table {
+        return Table(tableCommand(String(command),  tables));
+    });
 }
