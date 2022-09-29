@@ -81,7 +81,7 @@ function Base.iterate(x::ColumnDescSet, i)
     return x[i], i
 end
 
-function gettype(x::DataType)
+function getcxxtype(x::DataType)
     typemap = (
         TpBool => CxxBool,
         TpChar => CxxChar,
@@ -107,6 +107,14 @@ function gettype(x::DataType)
     throw(KeyError(typeof(x)))
 end
 
+getcxxtype(::Type{T}) where {T} = T
+getcxxtype(::Type{Bool}) = CxxBool
+getcxxtype(::Type{Int}) = CxxLongLong
+
+getjuliatype(::Type{T}) where {T} = T
+getjuliatype(::Type{CxxBool}) = Bool
+getjuliatype(::Type{CxxLongLong}) = Int64
+
 @cxxdereference Base.Symbol(x::String) = (Symbol ∘ unsafe_string ∘ LibCasacore.c_str)(x)
 String(x::Symbol) = (String ∘ Base.String)(x)
 
@@ -124,10 +132,14 @@ end
 
 function asarray(
     x::Union{VectorAllocated{T}, ArrayAllocated{T}}, dims::NTuple{N, Int}=Base.size(x)
-)::Base.Array{T, N} where {T, N}
+) where {T, N}
     deleteIt = Ref{UInt8}()
     ptr = getStorage(x, deleteIt)
-    dest = unsafe_wrap(Base.Array, ptr.cpp_object, dims, own=false)::Base.Array{T, N}
+
+    S = getjuliatype(T)
+    dest = unsafe_wrap(
+        Base.Array, convert(Ptr{S}, ptr.cpp_object), dims, own=false
+    )::Base.Array{S, N}
 
     # This finalizer closure keeps x in scope to avoid its destruction so long as the
     # wrapping array is alive. It is also responsible for freeing storage if x

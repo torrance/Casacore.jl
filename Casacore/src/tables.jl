@@ -21,7 +21,7 @@ function Column(tableref::LibCasacore.Table, name::LibCasacore.String)
     tabledesc= LibCasacore.tableDesc(tableref)
     columndesc = LibCasacore.columnDesc(tabledesc, name)
 
-    scalarT = (LibCasacore.gettype ∘ LibCasacore.dataType)(columndesc)
+    scalarT = (LibCasacore.getcxxtype ∘ LibCasacore.dataType)(columndesc)
     ndim = Int(LibCasacore.ndim(columndesc))
     if ndim == 0
         columnref = LibCasacore.ScalarColumn{scalarT}(tableref, name)
@@ -34,6 +34,8 @@ function Column(tableref::LibCasacore.Table, name::LibCasacore.String)
     # If fixedshape == False we treat this as a vector::Vector{T} of length rows with
     # values that are either scalars (if ndim == 0) or arrays (if ndim > 0).
     fixedshape = Bool(LibCasacore.isFixedShape(columndesc))
+    scalarT = LibCasacore.getjuliatype(scalarT)
+
     if fixedshape || ndim == 0
         T = scalarT
         N = ndim + 1
@@ -93,9 +95,9 @@ function Base.setindex!(c::Column{T, 1, S}, v, i::Union{Int, Colon, OrdinalRange
     Base.setindex_shape_check(varray, length(i))
 
     GC.@preserve varray begin
-        vectorslice = LibCasacore.Vector{T}(
+        vectorslice = LibCasacore.Vector{LibCasacore.getcxxtype(T)}(
             LibCasacore.IPosition(Tuple(length(i))),
-            varray,
+            convert(Ptr{Cvoid}, pointer(varray)),
             LibCasacore.SHARE
         )
         rowslicer = LibCasacore.Slicer(i .- 1)
@@ -125,9 +127,9 @@ function Base.setindex!(c::Column{T, 1, S}, v, i::Int)::T where {T <: Array, S <
 
     varray = collect(eltype(T), v)
     GC.@preserve varray begin
-        arrayslice = LibCasacore.Array{eltype(T)}(
+        arrayslice = LibCasacore.Array{LibCasacore.getcxxtype(eltype(T))}(
             LibCasacore.IPosition(size(v)),
-            varray,
+            convert(Ptr{Cvoid}, pointer(varray)),
             LibCasacore.SHARE
         )
         LibCasacore.put(c.columnref, i - 1, arrayslice)
@@ -201,8 +203,10 @@ function Base.setindex!(c::Column{T, N, S}, v, I::Vararg{Union{Int, Colon, Ordin
     cellslicer = LibCasacore.Slicer(I[1:(end - 1)]...)
 
     GC.@preserve varray begin
-        arrayslice = LibCasacore.Array{eltype(T)}(
-            LibCasacore.IPosition(length.(I)), varray, LibCasacore.SHARE
+        arrayslice = LibCasacore.Array{LibCasacore.getcxxtype(eltype(T))}(
+            LibCasacore.IPosition(length.(I)),
+            convert(Ptr{Cvoid}, pointer(varray)),
+            LibCasacore.SHARE
         )
         LibCasacore.putColumnRange(c.columnref, rowslicer, cellslicer, arrayslice)
     end
@@ -244,7 +248,7 @@ function Base.setindex!(x::Table, v::ScalarColumnDesc{T}, name::Symbol) where {T
     LibCasacore.addColumn(
         x.tableref,
         LibCasacore.ColumnDesc(
-            LibCasacore.ScalarColumnDesc{T}(
+            LibCasacore.ScalarColumnDesc{LibCasacore.getcxxtype(T)}(
                 LibCasacore.String(name),
                 zero(UInt32)
             )
@@ -261,7 +265,7 @@ function Base.setindex!(x::Table, v::ArrayColumnDesc{T, N}, name::Symbol) where 
     LibCasacore.addColumn(
         x.tableref,
         LibCasacore.ColumnDesc(
-            LibCasacore.ArrayColumnDesc{eltype(T)}(
+            LibCasacore.ArrayColumnDesc{LibCasacore.getcxxtype(eltype(T))}(
                 LibCasacore.String(name),
                 N,
                 zero(UInt32)
@@ -279,7 +283,7 @@ function Base.setindex!(x::Table, v::FixedArrayColumnDesc{T, N}, name::Symbol) w
     LibCasacore.addColumn(
         x.tableref,
         LibCasacore.ColumnDesc(
-            LibCasacore.ArrayColumnDesc{T}(
+            LibCasacore.ArrayColumnDesc{LibCasacore.getcxxtype(T)}(
                 LibCasacore.String(name),
                 LibCasacore.IPosition(v.cellsize),
                 reinterpret(UInt32, LibCasacore.ColumnFixedShape)
