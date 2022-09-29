@@ -37,12 +37,14 @@ function Column(tableref::LibCasacore.Table, name::LibCasacore.String)
     if fixedshape || ndim == 0
         T = scalarT
         N = ndim + 1
+    elseif ndim < 0
+        # If ndim is negative, the dimension of cell arrays is unknown
+        N = 1
+        T = Array{scalarT}
     else
         N = 1
         T = Array{scalarT, ndim}
     end
-
-    slice = Tuple(fill(:, N))
 
     return Column{T, N, typeof(columnref)}(
         Symbol(name), tableref, columnref
