@@ -386,10 +386,12 @@ function taql(command::String, table::Table, tables::Vararg{Table})
         push!(tablesvec, Ref(LibCasacore.ConstCxxPtr(table.tableref)))
     end
 
-    return Table(LibCasacore.tableCommand(
-        command,
-        tablesvec
-    ))
+    GC.@preserve table tables begin
+        return Table(LibCasacore.tableCommand(
+            command,
+            tablesvec
+        ))
+    end
 end
 
 function zerodim_as_scalar(x::Array{T, 0}) where T
