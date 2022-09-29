@@ -35,7 +35,8 @@ end
 
 # Array
 Base.length(x::Array)::Int = reduce(*, Base.size(x))
-Base.size(x::Array) = Tuple(shape(x)...)
+Base.size(x::Array) = tuple(shape(x)...)
+Base.size(x::Array, dim::Int)::Int = shape(x)[dim - 1]
 
 # IPosition: implements indexing, iteration
 IPosition(is::NTuple{N, Int}) where N = IPosition(N, is...)
