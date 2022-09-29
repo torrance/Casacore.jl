@@ -226,6 +226,8 @@ Base.size(x::Table)::Tuple{Int, Int} = (
     LibCasacore.ncolumn(LibCasacore.tableDesc(x.tableref))
 )
 
+Base.size(x::Table, dim::Int) = size(x)[dim]
+
 function Base.getindex(x::Table, name::Symbol)
     if name in keys(x)
         return Column(x.tableref, LibCasacore.String(name))
