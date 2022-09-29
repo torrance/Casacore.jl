@@ -78,13 +78,23 @@ Base.eachindex(::IndexLinear, A::Column) = (@inline; Base.oneto(length(A)))
 # Scalar array indexing
 function Base.getindex(c::Column{T, 1, S}, i::Union{Int, Colon, OrdinalRange}) where {T, S <: LibCasacore.ScalarColumn}
     @boundscheck checkbounds(c, i)
-    i, = to_indices(c, (i,))
+    i = to_indices(c, (i,))
 
-    rowslicer = LibCasacore.Slicer(i .- 1)
-    arrayslice = LibCasacore.getColumnRange(c.columnref, rowslicer)
+    # Create destination array
+    shape = length.(Base.index_shape(i...))  # singleton dimensions are collapsed
+    dest = Array{T}(undef, shape)
 
-    shape = length.(Base.index_shape(i))
-    zerodim_as_scalar(LibCasacore.asarray(arrayslice, shape))
+    # Create casacore::Vector which shares underlying memeory with dest
+    shape = LibCasacore.IPosition(length.(i))  # retain singleton dimensions
+    casacore_vector = LibCasacore.Vector{LibCasacore.getcxxtype(T)}(
+        shape, convert(Ptr{Cvoid}, pointer(dest)), LibCasacore.SHARE
+    )
+
+    # Write into dest
+    rowslicer = LibCasacore.Slicer(broadcast(.-, i, 1)...)
+    LibCasacore.getColumnRange(c.columnref, rowslicer, casacore_vector, false)
+
+    return zerodim_as_scalar(dest)
 end
 
 function Base.setindex!(c::Column{T, 1, S}, v, i::Union{Int, Colon, OrdinalRange}) where {T, S <: LibCasacore.ScalarColumn}
@@ -110,8 +120,31 @@ end
 # Array of arrays indexing
 function Base.getindex(c::Column{T, 1, S}, i::Int)::T where {T <: Array, S <: LibCasacore.ArrayColumn}
     @boundscheck checkbounds(c, i)
-    arrayslice = LibCasacore.getindex(c.columnref, i - 1)
-    return LibCasacore.asarray(arrayslice, size(arrayslice))
+
+    # First check if row contains anything at all
+    if LibCasacore.isDefined(c.columnref, i - 1) == 0
+        # If dimensions of T are not set, return 0 length vector
+        if T == Array{eltype(T)}
+            return T(undef, 0)
+        # Otherwise we return zero length N-dimensional vector
+        else
+           return T(undef, ntuple(zero, ndims(T)))
+        end
+    end
+
+    # Create destination
+    shape = LibCasacore.shape(c.columnref, i - 1)
+    dest = T(undef, shape...)
+
+    # Create casacore::Array which shares underlying memeory with dest
+    casacore_array = LibCasacore.Array{LibCasacore.getcxxtype(eltype(T))}(
+        shape, convert(Ptr{Cvoid}, pointer(dest)), LibCasacore.SHARE
+    )
+
+    # Write into dest
+    LibCasacore.get(c.columnref, i - 1, casacore_array, false)
+
+    return dest
 end
 
 function Base.getindex(c::Column{T, 1, S}, i::Union{Colon, OrdinalRange})::Vector{T} where {T <: Array, S <: LibCasacore.ArrayColumn}
@@ -165,15 +198,25 @@ function Base.getindex(c::Column{T, N, S}, I::Vararg{Union{Int, Colon, OrdinalRa
         I = to_indices(c, I)
     end
 
+    # Create destination
+    shape = length.(Base.index_shape(I...))  # singleton dimensions are collapsed
+    dest = Array{eltype(T)}(undef, shape)
+
+    # Create casacore::Array which shares underlying memeory with dest
+    shape = LibCasacore.IPosition(length.(I))  # retain singleton dimensions
+    casacore_array = LibCasacore.Array{LibCasacore.getcxxtype(eltype(T))}(
+        shape, convert(Ptr{Cvoid}, pointer(dest)), LibCasacore.SHARE
+    )
+
     # 0- to 1-based indexing
-    I = map(x -> x .- 1, I)
+    I = broadcast(.-, I, 1)
     rowslicer = LibCasacore.Slicer(I[end])
     cellslicer = LibCasacore.Slicer(I[1:(end - 1)]...)
 
-    arrayslice = LibCasacore.getColumnRange(c.columnref, rowslicer, cellslicer)
+    # Copy column slice into dest
+    LibCasacore.getColumnRange(c.columnref, rowslicer, cellslicer, casacore_array, false)
 
-    shape = length.(Base.index_shape(I...))
-    zerodim_as_scalar(LibCasacore.asarray(arrayslice, shape))
+    return zerodim_as_scalar(dest)
 end
 
 function Base.setindex!(c::Column{T, N, S}, v, I::Vararg{Union{Int, Colon, OrdinalRange}, M}) where {T, N, M, S <: LibCasacore.ArrayColumn}

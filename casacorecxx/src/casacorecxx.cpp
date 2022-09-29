@@ -316,6 +316,10 @@ mod.add_type<jlcxx::Parametric<jlcxx::TypeVar<1>>>("ArrayColumnDesc", jlcxx::jul
                 static_cast<Vector<T> (WrappedT::*)(const Slicer &) const>(&WrappedT::getColumnRange)
             );
             wrapped.method(
+                "getColumnRange",
+                static_cast<void (WrappedT::*)(const Slicer &, Vector<T> &, Bool) const>(&WrappedT::getColumnRange)
+            );
+            wrapped.method(
                 "putColumnRange",
                 static_cast<void (WrappedT::*)(const Slicer &, const Vector<T> &)>(&WrappedT::putColumnRange)
             );
@@ -342,12 +346,20 @@ mod.add_type<jlcxx::Parametric<jlcxx::TypeVar<1>>>("ArrayColumnDesc", jlcxx::jul
             wrapped.template constructor();
             wrapped.template constructor<const Table &, const String &>();
             wrapped.method("nrow", &TableColumn::nrow);
+            wrapped.method("ndim", &WrappedT::ndim);
+            wrapped.method("isDefined", &TableColumn::isDefined);
+            wrapped.method("shape", &WrappedT::shape);
             wrapped.method("shapeColumn", &TableColumn::shapeColumn);
-            wrapped.method("getindex", &WrappedT::operator());
+            wrapped.method("get", static_cast<Array<T> (WrappedT::*)(rownr_t) const>(&WrappedT::get));
+            wrapped.method("get", static_cast<void (WrappedT::*)(rownr_t, Array<T> &, Bool) const>(&WrappedT::get));
             wrapped.method("getColumn", [](const WrappedT & wrappedT) { return wrappedT.getColumn(); });
             wrapped.method(
                 "getColumnRange",
                 static_cast<Array<T> (WrappedT::*)(const Slicer &, const Slicer &) const>(&WrappedT::getColumnRange)
+            );
+            wrapped.method(
+                "getColumnRange",
+                static_cast<void (WrappedT::*)(const Slicer &, const Slicer &, Array<T> &, Bool) const>(&WrappedT::getColumnRange)
             );
             wrapped.method("put", static_cast<void (WrappedT::*)(rownr_t, const Array<T> &)>(&WrappedT::put));
             wrapped.method(

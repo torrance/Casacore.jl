@@ -130,28 +130,4 @@ function Slicer(is::Vararg{Union{Int, OrdinalRange}, N}) where N
     )
 end
 
-function asarray(
-    x::Union{VectorAllocated{T}, ArrayAllocated{T}}, dims::NTuple{N, Int}=Base.size(x)
-) where {T, N}
-    deleteIt = Ref{UInt8}()
-    ptr = getStorage(x, deleteIt)
-
-    S = getjuliatype(T)
-    dest = unsafe_wrap(
-        Base.Array, convert(Ptr{S}, ptr.cpp_object), dims, own=false
-    )::Base.Array{S, N}
-
-    # This finalizer closure keeps x in scope to avoid its destruction so long as the
-    # wrapping array is alive. It is also responsible for freeing storage if x
-    # is non-contiguous and getStorage() resulted in a copy.
-    finalizer(dest) do _
-        # For some reason (I don't understand why) we occasionally see these pointers
-        # already set to NULL when this finalizer runs. For now, to avoid use after free
-        # errors, we check first that they contain valid addresses.
-        if ptr.cpp_object != C_NULL && x.cpp_object != C_NULL
-            freeStorage(x, ptr, Bool(deleteIt[]))
-        end
-    end
-end
-
 end
