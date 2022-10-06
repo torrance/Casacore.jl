@@ -1,13 +1,18 @@
 module LibCasacore
-import Base
 
-using CxxWrap
 using casacorecxx_jll
+using CxxWrap
+using Pkg.Artifacts
 
 @wrapmodule(libcasacorecxx)
 
 function __init__()
     @initcxx
+
+    # Configure Casacore data paths.
+    # Set juliastate as global since casacore holds the pointer and expects the object to remain alive.
+    global juliastate = JuliaState(artifact"measures")
+    initialize(CxxPtr(juliastate))
 end
 
 # Vector: implements iteration, indexing

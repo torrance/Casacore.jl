@@ -1,14 +1,32 @@
 #include <jlcxx/jlcxx.hpp>
 #include <jlcxx/stl.hpp>
 
+#include <casacore/casa/System/AppState.h>
 #include <casacore/casa/Utilities.h>
 #include <casacore/tables/Tables.h>
 #include <casacore/tables/TaQL.h>
 
 using namespace casacore;
 
+class JuliaState: public AppState {
+public:
+    JuliaState(std::string measuresDir) : _measuresDir(measuresDir) {}
+
+    std::string measuresDir() const {
+        return _measuresDir;
+    }
+
+    bool initialized() const {
+        return true;
+    }
+
+private:
+    std::string _measuresDir;
+};
+
 // Define super types to allow upcasting, which in turn allows class hierarchies
 namespace jlcxx {
+    template<> struct SuperType<JuliaState> { typedef AppState type; };
     template<typename T> struct SuperType<ScalarColumnDesc<T>> { typedef BaseColumnDesc type; };
     template<typename T> struct SuperType<ArrayColumnDesc<T>> { typedef BaseColumnDesc type; };
 }
@@ -16,6 +34,18 @@ namespace jlcxx {
 JLCXX_MODULE define_julia_module(jlcxx::Module &mod) {
     // Order matters: types must be declared before they are used (or returned),
     // or else Julia will error during load.
+
+    /**
+     * CONFIG
+     */
+
+    mod.add_type<AppState>("AppState");
+
+    mod.add_type<JuliaState>("JuliaState", jlcxx::julia_base_type<AppState>())
+        .constructor<std::string>();
+
+    mod.add_type<AppStateSource>("AppStateSource")
+        .method("initialize", &AppStateSource::initialize);
 
     /*
      * UTILITIES
