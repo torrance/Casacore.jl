@@ -4,6 +4,8 @@ using casacorecxx_jll
 using CxxWrap
 using Pkg.Artifacts
 
+include("LibCasacore/Enums.jl")
+
 @wrapmodule(libcasacorecxx)
 
 function __init__()

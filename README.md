@@ -1,8 +1,6 @@
 # Casacore.jl
 
-This package provides Casacore for using in Julia. Casacore does not need to be installed first, as this package makes use of the BinaryBuilder.
-
-This project is in early development and only minimal features are completed yet.
+This package provides Casacore for using in Julia. All dependencies are installed automatically using BinaryBuilder and Pkg.Artifacts.
 
 Previous work on Casacore integration has been packaged as [Cassacore.jl](https://github.com/kiranshila/CasaCore.jl) which provides a bespoke C wrapper. This present module differs by using CxxWrap to wrap the C++ methods of Casacore to provide low level access to Casacore internals, and well as a more intuitive high level interface.
 
@@ -16,6 +14,8 @@ Read/write access to tables and columns:
 using Casacore.Tables: Table
 
 table = Table("/path/to/my/table.ms", readonly=false)
+
+size(table) == (260000, 25)  # rows x columns
 ```
 
 ### Subtables
@@ -93,12 +93,36 @@ size(derived[:MAXANT]) == (228780,)
 
 Command accepts a standard Julia `String`, however note that in this case we've prefixed the string with `raw"..."` which stops Julia attempting to interpolate the `$1` table identifier. If you use a standard string literal, ensure such identifiers are properly escaped.
 
+### Measures
+
+Measures allow constructing objects that contain a value with respect to a particular reference frame. Examples include: an Altitude/Azimuth frame with respect to a particular location and time on Earth; a Right Ascension/Declination on the sky with respect to the J2000 system; or a time in UTC timezone.
+
+In Casacore, Measures are primarily implemented to allow conversions between frames and in Julia this is the primary usecase for which we have designed their use.
+
+```julia
+using Casacore.Measures
+using Unitful  # provides @str_u macro for units, e.g. 1u"m"
+
+# We want to convert this RA/Dec direction to Azimuth/Elevation
+direction = Measures.Direction(Measures.DirectionTypes.J2000, 0u"rad", 0u"rad")
+
+# A local Az/El requires knowledge of our position on Earth and the time
+pos = Measures.Position(Measures.PositionTypes.ITRF, 1u"km", 0u"rad", 0u"rad")
+time = Measures.Epoch(Measures.EpochTypes.UTC, 1234567u"d")
+
+# Perform conversion by passing in additional measures
+# newdirection = Direction(newtype, olddirection, [measures...])
+direction = Measures.Direction(Measures.DirectionTypes.AZEL, direction, pos, time)
+
+long(direction), lat(direction)  # -1.2469808464138252 rad, 0.48889373998953756 rad
+```
+
 ## Still to do
 
 * Allow memory reuse when indexing into columns (e.g. copy!(), maybe with view())
 * Create table
 * Create columns from arrays or other columns
-* Fix type conversions for Bool, Int64
 * Add/delete rows functionality
 * Table keywords (?)
-* Measures
+* Additional measures
+* Observatories

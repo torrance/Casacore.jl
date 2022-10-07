@@ -1,8 +1,17 @@
 #include <jlcxx/jlcxx.hpp>
 #include <jlcxx/stl.hpp>
 
+#include <casacore/casa/Quanta.h>
 #include <casacore/casa/System/AppState.h>
 #include <casacore/casa/Utilities.h>
+#include <casacore/measures/Measures.h>
+#include <casacore/measures/Measures/MCDirection.h>
+#include <casacore/measures/Measures/MCEpoch.h>
+#include <casacore/measures/Measures/MCPosition.h>
+#include <casacore/measures/Measures/MeasConvert.h>
+#include <casacore/measures/Measures/MEpoch.h>
+#include <casacore/measures/Measures/MDirection.h>
+#include <casacore/measures/Measures/MPosition.h>
 #include <casacore/tables/Tables.h>
 #include <casacore/tables/TaQL.h>
 
@@ -24,11 +33,38 @@ private:
     std::string _measuresDir;
 };
 
+// This function is called repeatedly when adding Measures.
+// We add measures by their base names rather than as parametric types of Measure class.
+// This is due to circular type dependencies in signatures that cause errors in Julia.
+template<typename T, typename TV>
+void addmeasure(jlcxx::Module & mod, std::string mname) {
+    mod.template add_type<typename T::Ref>(mname + "!Ref")
+        .template constructor<const typename T::Types, const MeasFrame &>();
+
+    mod.template add_type<T>(mname, jlcxx::julia_base_type<Measure>())
+        .template constructor<const T &>()  // copy()
+        .template constructor<const TV &>()
+        .template constructor<const TV &, typename T::Types>()
+        .template constructor<const TV &, const typename T::Ref &>()
+        .method("setOffset", &T::setOffset)
+        .method("getValue", &T::getValue)
+        .method("getRef", &T::getRef)
+        .method("getRefString", &T::getRefString)
+        .method("tellMe", &T::tellMe);
+
+    mod.template add_type<typename T::Convert>(mname + "!Convert")
+        .template constructor<const T &, const typename T::Ref &>()
+        .method(static_cast<const T & (T::Convert::*)(void)>(&T::Convert::operator()));
+}
+
 // Define super types to allow upcasting, which in turn allows class hierarchies
 namespace jlcxx {
     template<> struct SuperType<JuliaState> { typedef AppState type; };
     template<typename T> struct SuperType<ScalarColumnDesc<T>> { typedef BaseColumnDesc type; };
     template<typename T> struct SuperType<ArrayColumnDesc<T>> { typedef BaseColumnDesc type; };
+    template<> struct SuperType<MPosition> { typedef Measure type; };
+    template<> struct SuperType<MEpoch> { typedef Measure type; };
+    template<> struct SuperType<MDirection> { typedef Measure type; };
 }
 
 JLCXX_MODULE define_julia_module(jlcxx::Module &mod) {
@@ -376,4 +412,44 @@ mod.add_type<jlcxx::Parametric<jlcxx::TypeVar<1>>>("ArrayColumnDesc", jlcxx::jul
     mod.method("tableCommand", [](std::string command, std::vector<const Table*> tables) -> Table {
         return Table(tableCommand(String(command),  tables));
     });
+
+    /**
+     * MEASURES
+     */
+
+    mod.add_type<Unit>("Unit")
+        .constructor<String>();
+
+    mod.add_type<Quantity>("Quantity")
+        .constructor<Double, String>()
+        .constructor<Double, Unit>()
+        .method("qconvert", static_cast<void (Quantity::*)(const Unit &)>(&Quantity::convert))
+        .method("getValue", static_cast<double & (Quantity::*)(void)>(&Quantity::getValue));
+
+    mod.add_type<Measure>("Measure");
+
+    mod.add_type<MeasFrame>("MeasFrame")
+        .constructor<const Measure &>()
+        .constructor<const Measure &, const Measure &>()
+        .constructor<const Measure &, const Measure &, const Measure &>();
+
+    mod.add_type<MVPosition>("MVPosition")
+        // Can be supplied as (radial length, longitude, latitude)
+        .constructor<const Quantity &, const Quantity &, const Quantity &>()
+        .method("getLength", static_cast<Quantity (MVPosition::*)(const Unit &) const>(&MVPosition::getLength))
+        .method("getLong", static_cast<Double (MVPosition::*)(void) const>(&MVPosition::getLong))
+        .method("getLat", static_cast<Double (MVPosition::*)(void) const>(&MVPosition::getLat));
+
+    mod.add_type<MVEpoch>("MVEpoch")
+        .constructor<const Quantity &>()
+        .method("get", &MVEpoch::get);
+
+    mod.add_type<MVDirection>("MVDirection")
+        .constructor<const Quantity &, const Quantity &>()
+        .method("getLong", static_cast<Double (MVDirection::*)(void) const>(&MVDirection::getLong))
+        .method("getLat", static_cast<Double (MVDirection::*)(void) const>(&MVDirection::getLat));
+
+    addmeasure<MEpoch, MVEpoch>(mod, "MEpoch");
+    addmeasure<MDirection, MVDirection>(mod, "MDirection");
+    addmeasure<MPosition, MVPosition>(mod, "MPosition");
 }
