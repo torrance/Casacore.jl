@@ -7,12 +7,32 @@ using ..LibCasacore.DirectionTypes
 using ..LibCasacore.EpochTypes
 using ..LibCasacore.PositionTypes
 
-export long, lat, radius, days
+export long, lat, radius, days, mconvert
 
 abstract type Measure end
 
-struct Direction <: Measure
-    cxx_object::LibCasacore.MDirectionAllocated
+for m in (:Direction, :Epoch, :Position)
+    @eval begin
+        struct $m <: Measure
+            cxx_object::LibCasacore.$(Symbol("M", m, "Allocated"))
+        end
+
+        referencestr(x::$m) = Symbol(LibCasacore.getRefString(x.cxx_object))
+
+        function mconvert(direction::$m, type::$(Symbol(m, "Types")).Types, measures::Vararg{Measure})
+            return $m(
+                copy(
+                    LibCasacore.$(Symbol("M", m, "!Convert"))(
+                        direction.cxx_object,
+                        LibCasacore.$(Symbol("M", m, "!Ref"))(
+                            type,
+                            LibCasacore.MeasFrame((m.cxx_object for m in measures)...)
+                        )
+                    )()
+                )
+            )
+        end
+    end
 end
 
 function Direction(
@@ -42,11 +62,7 @@ long(x::Direction) = LibCasacore.getLong(LibCasacore.getValue(x.cxx_object)) * U
 lat(x::Direction) = LibCasacore.getLat(LibCasacore.getValue(x.cxx_object)) * Unitful.rad
 
 function Base.show(io::IO, x::Direction)
-    write(io, "Direction($(reference(x)), $(long(x)), $(lat(x)))")
-end
-
-struct Epoch <: Measure
-    cxx_object::LibCasacore.MEpochAllocated
+    write(io, "Direction($(referencestr(x)), $(long(x)), $(lat(x)))")
 end
 
 function Epoch(
@@ -72,11 +88,7 @@ end
 days(x::Epoch) = LibCasacore.get(LibCasacore.getValue(x.cxx_object)) * Unitful.d
 
 function Base.show(io::IO, x::Epoch)
-    write(io, "Epoch($(reference(x)), $(days(x)))")
-end
-
-struct Position <: Measure
-    cxx_object::LibCasacore.MPositionAllocated
+    write(io, "Epoch($(referencestr(x)), $(days(x)))")
 end
 
 function Position(
@@ -114,31 +126,7 @@ long(x::Position) = LibCasacore.getLong(LibCasacore.getValue(x.cxx_object)) * Un
 lat(x::Position) = LibCasacore.getLat(LibCasacore.getValue(x.cxx_object)) * Unitful.rad
 
 function Base.show(io::IO, x::Position)
-    write(io, "Position($(reference(x)), $(radius(x)), $(long(x)), $(lat(x)))")
-end
-
-for m in (:Direction, :Epoch, :Position)
-    mtype = Symbol(m, "Types")
-    mconvert = Symbol("M", m, "!Convert")
-    mref = Symbol("M", m, "!Ref")
-
-    @eval begin
-        reference(x::$m) = Symbol(LibCasacore.getRefString(x.cxx_object))
-
-        function $m(type::$mtype.Types, direction::$m, measures::Vararg{Measure})
-            return $m(
-                copy(
-                    LibCasacore.$mconvert(
-                        direction.cxx_object,
-                        LibCasacore.$mref(
-                            type,
-                            LibCasacore.MeasFrame((m.cxx_object for m in measures)...)
-                        )
-                    )()
-                )
-            )
-        end
-    end
+    write(io, "Position($(referencestr(x)), $(radius(x)), $(long(x)), $(lat(x)))")
 end
 
 end

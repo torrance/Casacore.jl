@@ -50,11 +50,17 @@ void addmeasure(jlcxx::Module & mod, std::string mname) {
         .method("getValue", &T::getValue)
         .method("getRef", &T::getRef)
         .method("getRefString", &T::getRefString)
-        .method("tellMe", &T::tellMe);
+        .method("tellMe", &T::tellMe)
+        .method("set", static_cast<void (T::*)(const TV &)>(&T::set));
 
     mod.template add_type<typename T::Convert>(mname + "!Convert")
         .template constructor<const T &, const typename T::Ref &>()
-        .method(static_cast<const T & (T::Convert::*)(void)>(&T::Convert::operator()));
+        .template constructor<const typename T::Ref &, const typename T::Ref &>()
+        .method(static_cast<const T & (T::Convert::*)(void)>(&T::Convert::operator()))
+        .method(static_cast<const T & (T::Convert::*)(const T &)>(&T::Convert::operator()))
+        .method(static_cast<const T & (T::Convert::*)(const TV &)>(&T::Convert::operator()))
+        .method("setModel", &T::Convert::setModel)
+        .method("setOut", static_cast<void (T::Convert::*)(const typename T::Ref &)>(&T::Convert::setOut));
 }
 
 // Define super types to allow upcasting, which in turn allows class hierarchies
@@ -429,6 +435,7 @@ mod.add_type<jlcxx::Parametric<jlcxx::TypeVar<1>>>("ArrayColumnDesc", jlcxx::jul
     mod.add_type<Measure>("Measure");
 
     mod.add_type<MeasFrame>("MeasFrame")
+        .constructor()
         .constructor<const Measure &>()
         .constructor<const Measure &, const Measure &>()
         .constructor<const Measure &, const Measure &, const Measure &>();
@@ -447,7 +454,8 @@ mod.add_type<jlcxx::Parametric<jlcxx::TypeVar<1>>>("ArrayColumnDesc", jlcxx::jul
     mod.add_type<MVDirection>("MVDirection")
         .constructor<const Quantity &, const Quantity &>()
         .method("getLong", static_cast<Double (MVDirection::*)(void) const>(&MVDirection::getLong))
-        .method("getLat", static_cast<Double (MVDirection::*)(void) const>(&MVDirection::getLat));
+        .method("getLat", static_cast<Double (MVDirection::*)(void) const>(&MVDirection::getLat))
+        .method("setAngle", &MVDirection::setAngle);
 
     addmeasure<MEpoch, MVEpoch>(mod, "MEpoch");
     addmeasure<MDirection, MVDirection>(mod, "MDirection");
