@@ -117,6 +117,7 @@ end
 getcxxtype(::Type{T}) where {T} = T
 getcxxtype(::Type{Bool}) = CxxBool
 getcxxtype(::Type{Int}) = CxxLongLong
+getcxxtype(::Type{UInt64}) = CxxULongLong
 
 getjuliatype(::Type{T}) where {T} = T
 getjuliatype(::Type{CxxBool}) = Bool

@@ -8,8 +8,19 @@
 #include <casacore/measures/Measures/MEpoch.h>
 #include <casacore/measures/Measures/MDirection.h>
 #include <casacore/measures/Measures/MPosition.h>
+#include <casacore/tables/Tables.h>
 
 using namespace casacore;
+
+JLCXX_MODULE define_module_tableoption(jlcxx::Module &mod) {
+    mod.add_bits<Table::TableOption>("TableOption", jlcxx::julia_type("CppEnum"));
+    mod.set_const("Old", Table::Old);
+    mod.set_const("New", Table::New);
+    mod.set_const("NewNoReplace", Table::NewNoReplace);
+    mod.set_const("Scratch", Table::Scratch);
+    mod.set_const("Update", Table::Update);
+    mod.set_const("Delete", Table::Delete);
+}
 
 JLCXX_MODULE define_module_mdirection(jlcxx::Module &mod) {
     mod.add_bits<MDirection::Types>("Types", jlcxx::julia_type("CppEnum"));

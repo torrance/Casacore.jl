@@ -170,7 +170,8 @@ JLCXX_MODULE define_julia_module(jlcxx::Module &mod) {
             Vector<Double>,
             Vector<Complex>,
             Vector<DComplex>,
-            Vector<String>
+            Vector<String>,
+            Vector<rownr_t> // used in RowNumbers constructor
         >([](auto wrapped) {
             typedef typename decltype(wrapped)::type WrappedT;
             typedef typename WrappedT::value_type T;
@@ -213,61 +214,69 @@ JLCXX_MODULE define_julia_module(jlcxx::Module &mod) {
             wrapped.method("freeStorage", &WrappedT::freeStorage);
         });
 
-
-mod.add_bits<ColumnDesc::Option>("ColumnOption");
-mod.set_const("ColumnDirect", ColumnDesc::Direct);
-mod.set_const("ColumnUndefined", ColumnDesc::Undefined);
-mod.set_const("ColumnFixedShape", ColumnDesc::FixedShape);
-
-mod.add_type<BaseColumnDesc>("BaseColumnDesc");
-
-mod.add_type<jlcxx::Parametric<jlcxx::TypeVar<1>>>("ScalarColumnDesc", jlcxx::julia_base_type<BaseColumnDesc>())
-    .apply<
-        ScalarColumnDesc<Bool>,
-        ScalarColumnDesc<Char>,
-        ScalarColumnDesc<uChar>,
-        ScalarColumnDesc<Short>,
-        ScalarColumnDesc<uShort>,
-        ScalarColumnDesc<Int>,
-        ScalarColumnDesc<uInt>,
-        ScalarColumnDesc<Int64>,
-        ScalarColumnDesc<Float>,
-        ScalarColumnDesc<Double>,
-        ScalarColumnDesc<Complex>,
-        ScalarColumnDesc<DComplex>,
-        ScalarColumnDesc<String>
-    >([](auto wrapped) {
-        typedef typename decltype(wrapped)::type WrappedT;
-        wrapped.template constructor<const String &, int>();
-        wrapped.template constructor<const String &, const String &, int>();
-        wrapped.method("setDefault", &WrappedT::setDefault);
-    });
-
-mod.add_type<jlcxx::Parametric<jlcxx::TypeVar<1>>>("ArrayColumnDesc", jlcxx::julia_base_type<BaseColumnDesc>())
-    .apply<
-        ArrayColumnDesc<Bool>,
-        ArrayColumnDesc<Char>,
-        ArrayColumnDesc<uChar>,
-        ArrayColumnDesc<Short>,
-        ArrayColumnDesc<uShort>,
-        ArrayColumnDesc<Int>,
-        ArrayColumnDesc<uInt>,
-        ArrayColumnDesc<Int64>,
-        ArrayColumnDesc<Float>,
-        ArrayColumnDesc<Double>,
-        ArrayColumnDesc<Complex>,
-        ArrayColumnDesc<DComplex>,
-        ArrayColumnDesc<String>
-    >([](auto wrapped) {
-        wrapped.template constructor<const String &, Int, int>();
-        wrapped.template constructor<const String &, const String &, Int, int>();
-        wrapped.template constructor<const String &, const IPosition &, int>();
-        wrapped.template constructor<const String &, const String &, const IPosition &, int>();
-    });
-
     /*
      * TABLES
      */
+
+    mod.add_bits<ColumnDesc::Option>("ColumnOption");
+    mod.set_const("ColumnDirect", ColumnDesc::Direct);
+    mod.set_const("ColumnUndefined", ColumnDesc::Undefined);
+    mod.set_const("ColumnFixedShape", ColumnDesc::FixedShape);
+
+    mod.add_type<BaseColumnDesc>("BaseColumnDesc");
+
+    mod.add_type<jlcxx::Parametric<jlcxx::TypeVar<1>>>("ScalarColumnDesc", jlcxx::julia_base_type<BaseColumnDesc>())
+        .apply<
+            ScalarColumnDesc<Bool>,
+            ScalarColumnDesc<Char>,
+            ScalarColumnDesc<uChar>,
+            ScalarColumnDesc<Short>,
+            ScalarColumnDesc<uShort>,
+            ScalarColumnDesc<Int>,
+            ScalarColumnDesc<uInt>,
+            ScalarColumnDesc<Int64>,
+            ScalarColumnDesc<Float>,
+            ScalarColumnDesc<Double>,
+            ScalarColumnDesc<Complex>,
+            ScalarColumnDesc<DComplex>,
+            ScalarColumnDesc<String>
+        >([](auto wrapped) {
+            typedef typename decltype(wrapped)::type WrappedT;
+
+            wrapped.template constructor<const String &, int>();
+            wrapped.template constructor<const String &, const String &, int>();
+            wrapped.template constructor<const String &, const String &, const String &, const String &>();
+            wrapped.method("setDefault", &WrappedT::setDefault);
+        });
+
+    mod.add_type<jlcxx::Parametric<jlcxx::TypeVar<1>>>("ArrayColumnDesc", jlcxx::julia_base_type<BaseColumnDesc>())
+        .apply<
+            ArrayColumnDesc<Bool>,
+            ArrayColumnDesc<Char>,
+            ArrayColumnDesc<uChar>,
+            ArrayColumnDesc<Short>,
+            ArrayColumnDesc<uShort>,
+            ArrayColumnDesc<Int>,
+            ArrayColumnDesc<uInt>,
+            ArrayColumnDesc<Int64>,
+            ArrayColumnDesc<Float>,
+            ArrayColumnDesc<Double>,
+            ArrayColumnDesc<Complex>,
+            ArrayColumnDesc<DComplex>,
+            ArrayColumnDesc<String>
+        >([](auto wrapped) {
+            typedef typename decltype(wrapped)::type WrappedT;
+
+            wrapped.template constructor<const String &, Int, int>();
+            wrapped.template constructor<const String &, const String &, Int, int>();
+            wrapped.template constructor<const String &, const IPosition &, int>();
+            wrapped.template constructor<const String &, const String &, const IPosition &, int>();
+            // Non-fixed shape
+            wrapped.template constructor<const String &, const String &, const String &, const String &, int>();
+            // Fixed shape
+            wrapped.template constructor<const String &, const String &, const String &, const String &, const IPosition &>();
+
+        });
 
     mod.add_type<ColumnDesc>("ColumnDesc")
         .constructor()
@@ -289,6 +298,9 @@ mod.add_type<jlcxx::Parametric<jlcxx::TypeVar<1>>>("ArrayColumnDesc", jlcxx::jul
         .constructor<String &>()
         .constructor<Int>();
 
+    mod.add_type<RowNumbers>("RowNumbers")
+        .constructor<const Vector<rownr_t> &>();
+
     mod.add_type<TableRecord>("TableRecord")
         .method("name", &TableRecord::name)
         .method("type", &TableRecord::type)
@@ -299,13 +311,9 @@ mod.add_type<jlcxx::Parametric<jlcxx::TypeVar<1>>>("ArrayColumnDesc", jlcxx::jul
     mod.add_type<TableLock>("TableLock")
         .constructor<const TableLock &>();
 
-    mod.add_bits<Table::TableOption>("TableOption", jlcxx::julia_type("CppEnum"));
-    mod.set_const("Old", Table::Old);
-    mod.set_const("New", Table::New);
-    mod.set_const("NewNoReplace", Table::NewNoReplace);
-    mod.set_const("Scratch", Table::Scratch);
-    mod.set_const("Update", Table::Update);
-    mod.set_const("Delete", Table::Delete);
+    mod.add_bits<Table::TableType>("TableType", jlcxx::julia_type("CppEnum"));
+    mod.set_const("Plain", Table::Plain);
+    mod.set_const("Memory", Table::Memory);
 
     mod.add_type<TableDesc>("TableDesc")
         .constructor()
@@ -316,16 +324,21 @@ mod.add_type<jlcxx::Parametric<jlcxx::TypeVar<1>>>("ArrayColumnDesc", jlcxx::jul
 
     mod.add_type<Table>("Table")
         .constructor()
-        .constructor<const Table &>()
+        .constructor<const Table &>() // copy
+        .constructor<Table::TableType>()
         .constructor<const String &>()
         .constructor<const String &, Table::TableOption>()
         .constructor<const String &, Table::TableOption, const TSMOption &>()
         .constructor<const String &, const TableLock &, Table::TableOption, const TSMOption &>()
+        .method("rename", &Table::rename)
         .method("nrow", &Table::nrow)
         .method("tableDesc", &Table::tableDesc)
         .method("flush", &Table::flush)
         .method("addColumn", static_cast<void (Table::*)(const ColumnDesc &, Bool)>(&Table::addColumn))
         .method("removeColumn", static_cast<void (Table::*)(const String &)>(&Table::removeColumn))
+        .method("addRow", &Table::addRow)
+        .method("removeRow", static_cast<void (Table::*)(rownr_t)>(&Table::removeRow))
+        .method("removeRow", static_cast<void (Table::*)(const RowNumbers &)>(&Table::removeRow))
         .method("keywordSet", &Table::keywordSet);
 
     // Add TableRecord::asTable here, due to dependency on Table

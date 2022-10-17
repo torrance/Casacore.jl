@@ -3,12 +3,48 @@ module Tables
 export taql
 
 using ..LibCasacore
+using ..LibCasacore: TableOptions
 
-abstract type ColumnDesc{T, N} end
-struct ScalarColumnDesc{T} <: ColumnDesc{T, 0} end
-struct ArrayColumnDesc{T <: Array, N} <: ColumnDesc{T, N} end
-struct FixedArrayColumnDesc{T, N} <: ColumnDesc{T, N}
-    cellsize::NTuple{N, Int}
+abstract type ColumnDesc{T} end
+
+struct ScalarColumnDesc{T} <: ColumnDesc{T}
+    comment::String
+    datamanager::Symbol
+    datagroup::Symbol
+end
+
+function ScalarColumnDesc{T}(
+    ;comment="", datamanager=:StandardStMan, datagroup=Symbol()
+) where T
+    return ScalarColumnDesc{T}(comment, datamanager, datagroup)
+end
+
+
+# T denotes the element type; it must be a primitive type.
+#
+# Valid states:
+#   * Freeform array: N = -1; shape = nothing
+#   * Fixed dimension, variable shape: N >= 1, shape = nothing
+#   * Fixed dimension and shape: N >= 1, shape <: NTuple{N, Int}
+struct ArrayColumnDesc{T, N} <: ColumnDesc{T}
+    shape::Union{Nothing, NTuple{N, Int}}
+    comment::String
+    datamanager::Symbol
+    datagroup::Symbol
+end
+
+# ArrayColumnDesc with no fixed dimension (or shape)
+function ArrayColumnDesc{T}(
+    ; comment="",  datamanager=:StandardStMan, datagroup=Symbol()
+) where T
+    return ArrayColumnDesc{T, -1}(nothing, comment, datamanager, datagroup)
+end
+
+# ArrayColumnDesc with fixed dimension
+function ArrayColumnDesc{T, N}(
+    shape=nothing; comment="",  datamanager=:StandardStMan, datagroup=Symbol()
+) where {T, N}
+    return ArrayColumnDesc{T, N}(shape, comment, datamanager, datagroup)
 end
 
 mutable struct Column{T, N, S}
@@ -261,11 +297,21 @@ struct Table
     tableref::LibCasacore.TableAllocated
 end
 
-function Table(path::String; readonly=true)
+function Table(path::String, tableoption::TableOptions.TableOption=TableOptions.Old)
     path = LibCasacore.String(path)
 
-    tableoption = readonly ? LibCasacore.Old : LibCasacore.Update
-    tableref = LibCasacore.Table(path, tableoption)
+    if tableoption ∈ (TableOptions.Old, TableOptions.Update)
+        # Open existing table
+        tableref = LibCasacore.Table(path, tableoption)
+    elseif tableoption ∈ (
+        TableOptions.New, TableOptions.NewNoReplace, TableOptions.Update, TableOptions.Scratch
+    )
+        # Create new table, possibly replacing old one
+        tableref = LibCasacore.Table(LibCasacore.Plain)
+        LibCasacore.rename(tableref, path, tableoption)
+    else
+        throw(ArugmentError("Invalid TableOption argument"))
+    end
 
     return Table(tableref)
 end
@@ -277,6 +323,42 @@ Base.size(x::Table)::Tuple{Int, Int} = (
 
 Base.size(x::Table, dim::Int) = size(x)[dim]
 
+function Base.resize!(x::Table, n::Integer)
+    nrows = size(x, 1)
+    if n == nrows
+        # We're good, do nothing
+    elseif n > nrows
+        # Add some rows
+        LibCasacore.addRow(x.tableref, n - size(x, 1), true)
+    else
+        # Remove rows from end
+        deleteat!(x, (n + 1):nrows)
+    end
+
+    return x
+end
+
+function Base.deleteat!(x::Table, inds)
+    inds = collect(UInt64, inds)
+    if inds ⊈ 1:size(x, 1)
+        throw(BoundsError(x, inds))
+    end
+
+    GC.@preserve inds begin
+        rownrs = LibCasacore.RowNumbers(
+            LibCasacore.Vector{LibCasacore.getcxxtype(UInt64)}(
+                LibCasacore.IPosition(size(inds)),
+                convert(Ptr{Cvoid}, pointer(inds)),
+                LibCasacore.SHARE
+            )
+        )
+
+        LibCasacore.removeRow(x.tableref, rownrs)
+    end
+
+    return x
+end
+
 function Base.getindex(x::Table, name::Symbol)
     if name in keys(x)
         return Column(x.tableref, LibCasacore.String(name))
@@ -284,7 +366,7 @@ function Base.getindex(x::Table, name::Symbol)
     throw(KeyError(name))
 end
 
-function Base.setindex!(x::Table, v::ScalarColumnDesc{T}, name::Symbol) where {T, N}
+function Base.setindex!(x::Table, v::ScalarColumnDesc{T}, name::Symbol) where {T}
     if name in keys(x)
         delete!(x, name)
     end
@@ -293,7 +375,9 @@ function Base.setindex!(x::Table, v::ScalarColumnDesc{T}, name::Symbol) where {T
         LibCasacore.ColumnDesc(
             LibCasacore.ScalarColumnDesc{LibCasacore.getcxxtype(T)}(
                 LibCasacore.String(name),
-                zero(UInt32)
+                LibCasacore.String(v.comment),
+                LibCasacore.String(v.datamanager),
+                LibCasacore.String(v.datagroup),
             )
         ),
         true
@@ -305,34 +389,29 @@ function Base.setindex!(x::Table, v::ArrayColumnDesc{T, N}, name::Symbol) where 
     if name in keys(x)
         delete!(x, name)
     end
-    LibCasacore.addColumn(
-        x.tableref,
-        LibCasacore.ColumnDesc(
-            LibCasacore.ArrayColumnDesc{LibCasacore.getcxxtype(eltype(T))}(
-                LibCasacore.String(name),
-                N,
-                zero(UInt32)
-            )
-        ),
-        true
-    )
-    return v
-end
 
-function Base.setindex!(x::Table, v::FixedArrayColumnDesc{T, N}, name::Symbol) where {T, N}
-    if name in keys(x)
-        delete!(x, name)
+    if v.shape == nothing
+        # Non-fixed shape, possibly non-fixed dimesions (if N = -1)
+        columndesc = LibCasacore.ArrayColumnDesc{LibCasacore.getcxxtype(T)}(
+            LibCasacore.String(name),
+            LibCasacore.String(v.comment),
+            LibCasacore.String(v.datamanager),
+            LibCasacore.String(v.datagroup),
+            N
+        )
+    else
+        # Fixed shape, and dimensions = length(shape)
+        columndesc = LibCasacore.ArrayColumnDesc{LibCasacore.getcxxtype(T)}(
+            LibCasacore.String(name),
+            LibCasacore.String(v.comment),
+            LibCasacore.String(v.datamanager),
+            LibCasacore.String(v.datagroup),
+            LibCasacore.IPosition(v.shape),
+        )
     end
+
     LibCasacore.addColumn(
-        x.tableref,
-        LibCasacore.ColumnDesc(
-            LibCasacore.ArrayColumnDesc{LibCasacore.getcxxtype(T)}(
-                LibCasacore.String(name),
-                LibCasacore.IPosition(v.cellsize),
-                reinterpret(UInt32, LibCasacore.ColumnFixedShape)
-            )
-        ),
-        true
+        x.tableref, LibCasacore.ColumnDesc(columndesc), true
     )
     return v
 end
