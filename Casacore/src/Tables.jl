@@ -467,6 +467,50 @@ function Base.setindex!(x::Table, v::ArrayColumnDesc{T, N}, name::Symbol) where 
     return v
 end
 
+function Base.setindex!(x::Table, v::Array{T, 1}, name::Symbol) where {T}
+    if size(x, 1) != length(v)
+        throw(DimensionMismatch("Cannot assign column with $(length(v)) rows to table with $(size(x, 1)) rows"))
+    end
+
+    # Create column
+    coldesc = ScalarColumnDesc{T}()
+    x[name] = coldesc
+
+    # Populate column with data from v
+    GC.@preserve v begin
+        vec = LibCasacore.Vector{LibCasacore.getcxxtype(T)}(
+            LibCasacore.IPosition(size(v)),
+            convert(Ptr{Cvoid}, pointer(v)),
+            LibCasacore.SHARE
+        )
+        LibCasacore.putColumn(x[name].columnref, vec)
+    end
+
+    return v
+end
+
+function Base.setindex!(x::Table, v::Array{T, N}, name::Symbol) where {T, N}
+    if size(x, 1) != size(v, N)
+        throw(DimensionMismatch("Cannot assign column with $(size(v, N)) rows to table with $(size(x, 1)) rows"))
+    end
+
+    # Create column
+    coldesc = ArrayColumnDesc{T, N - 1}(size(v)[1:end - 1])
+    x[name] = coldesc
+
+    # Populate column with data from v
+    GC.@preserve v begin
+        arr = LibCasacore.Array{LibCasacore.getcxxtype(T)}(
+            LibCasacore.IPosition(size(v)),
+            convert(Ptr{Cvoid}, pointer(v)),
+            LibCasacore.SHARE
+        )
+        LibCasacore.putColumn(x[name].columnref, arr)
+    end
+
+    return v
+end
+
 function Base.delete!(x::Table, name::Symbol)
     if name in keys(x)
         LibCasacore.removeColumn(x.tableref, LibCasacore.String(name))

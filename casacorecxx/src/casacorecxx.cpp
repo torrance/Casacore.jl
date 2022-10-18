@@ -393,6 +393,7 @@ JLCXX_MODULE define_julia_module(jlcxx::Module &mod) {
                 "getColumnRange",
                 static_cast<void (WrappedT::*)(const Slicer &, Vector<T> &, Bool) const>(&WrappedT::getColumnRange)
             );
+            wrapped.method("putColumn", static_cast<void (WrappedT::*)(const Vector<T> &)>(&WrappedT::putColumn));
             wrapped.method(
                 "putColumnRange",
                 static_cast<void (WrappedT::*)(const Slicer &, const Vector<T> &)>(&WrappedT::putColumnRange)
@@ -438,6 +439,7 @@ JLCXX_MODULE define_julia_module(jlcxx::Module &mod) {
                 static_cast<void (WrappedT::*)(const Slicer &, const Slicer &, Array<T> &, Bool) const>(&WrappedT::getColumnRange)
             );
             wrapped.method("put", static_cast<void (WrappedT::*)(rownr_t, const Array<T> &)>(&WrappedT::put));
+            wrapped.method("putColumn", static_cast<void (WrappedT::*)(const Array<T> &)>(&WrappedT::putColumn));
             wrapped.method(
                 "putColumnRange",
                 static_cast<void (WrappedT::*)(const Slicer &, const Slicer &, const Array<T> &)>(&WrappedT::putColumnRange)
