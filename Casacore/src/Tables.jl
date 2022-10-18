@@ -328,7 +328,7 @@ function Base.resize!(x::Table, n::Integer)
     if n == nrows
         # We're good, do nothing
     elseif n > nrows
-        # Add some rows
+        # Add some rows, fill with default value
         LibCasacore.addRow(x.tableref, n - size(x, 1), true)
     else
         # Remove rows from end
@@ -343,6 +343,9 @@ function Base.deleteat!(x::Table, inds)
     if inds ⊈ 1:size(x, 1)
         throw(BoundsError(x, inds))
     end
+
+    # One to zero indexing
+    inds .-= 1
 
     GC.@preserve inds begin
         rownrs = LibCasacore.RowNumbers(
