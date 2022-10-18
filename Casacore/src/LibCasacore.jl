@@ -123,6 +123,7 @@ getjuliatype(::Type{T}) where {T} = T
 getjuliatype(::Type{CxxBool}) = Bool
 getjuliatype(::Type{CxxLongLong}) = Int64
 
+@cxxdereference Base.String(x::String) = (unsafe_string ∘ LibCasacore.c_str)(x)
 @cxxdereference Base.Symbol(x::String) = (Symbol ∘ unsafe_string ∘ LibCasacore.c_str)(x)
 String(x::Symbol) = (String ∘ Base.String)(x)
 

@@ -304,7 +304,8 @@ JLCXX_MODULE define_julia_module(jlcxx::Module &mod) {
     mod.add_type<TableRecord>("TableRecord")
         .method("name", &TableRecord::name)
         .method("type", &TableRecord::type)
-        .method("size", &TableRecord::size);
+        .method("size", &TableRecord::size)
+        .method("fieldNumber", &TableRecord::fieldNumber);
 
     mod.add_type<TSMOption>("TSMOption");
 
@@ -330,21 +331,33 @@ JLCXX_MODULE define_julia_module(jlcxx::Module &mod) {
         .constructor<const String &, Table::TableOption>()
         .constructor<const String &, Table::TableOption, const TSMOption &>()
         .constructor<const String &, const TableLock &, Table::TableOption, const TSMOption &>()
+        .method("reopenRW", &Table::reopenRW)
         .method("rename", &Table::rename)
         .method("nrow", &Table::nrow)
+        .method("tableName", &Table::tableName)
         .method("tableDesc", &Table::tableDesc)
         .method("flush", &Table::flush)
+        .method("unlock", &Table::unlock)
         .method("addColumn", static_cast<void (Table::*)(const ColumnDesc &, Bool)>(&Table::addColumn))
         .method("removeColumn", static_cast<void (Table::*)(const String &)>(&Table::removeColumn))
         .method("addRow", &Table::addRow)
         .method("removeRow", static_cast<void (Table::*)(rownr_t)>(&Table::removeRow))
         .method("removeRow", static_cast<void (Table::*)(const RowNumbers &)>(&Table::removeRow))
-        .method("keywordSet", &Table::keywordSet);
+        .method("keywordSet", &Table::keywordSet)
+        .method("rwKeywordSet", &Table::rwKeywordSet)
+        .method("deepCopy", [](const Table & table, const String & name, Table::TableOption opt) {
+            return table.deepCopy(name, opt);
+        });
 
-    // Add TableRecord::asTable here, due to dependency on Table
+    // Add TableRecord methods that have dependencies on Table
     mod.method("asTable", [](const TableRecord & rec, const RecordFieldId & id) {
         return rec.asTable(id);
     });
+    mod.method("defineTable", [](TableRecord& rec, const RecordFieldId& id, const Table& table) {
+        return rec.defineTable(id, table);
+    });
+
+    mod.method("deleteSubTable", &TableUtil::deleteSubTable);
 
     mod.add_type<jlcxx::Parametric<jlcxx::TypeVar<1>>>("ScalarColumn")
         .apply<

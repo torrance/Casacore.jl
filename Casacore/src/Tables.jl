@@ -359,6 +359,11 @@ function Table(path::String, tableoption::TableOptions.TableOption=TableOptions.
     return Table(tableref)
 end
 
+# Constructor used in creating subtables
+function Table()
+    return Table(LibCasacore.Table(LibCasacore.Plain))
+end
+
 Base.size(x::Table)::Tuple{Int, Int} = (
     LibCasacore.nrow(x.tableref),
     LibCasacore.ncolumn(LibCasacore.tableDesc(x.tableref))
@@ -467,6 +472,10 @@ function Base.delete!(x::Table, name::Symbol)
         LibCasacore.removeColumn(x.tableref, LibCasacore.String(name))
         return
     end
+    if name in propertynames(x)
+        LibCasacore.deleteSubTable(x.tableref, LibCasacore.String(name), true)
+        return
+    end
     throw(KeyError(name))
 end
 
@@ -501,6 +510,38 @@ function Base.getproperty(x::Table, name::Symbol)
     end
 
     return getfield(x, name)
+end
+
+function Base.setproperty!(parent::Table, name::Symbol, sub::Table)
+    namestr = LibCasacore.String(name)
+    pathstr = LibCasacore.String(
+        joinpath(
+            String(LibCasacore.tableName(parent.tableref)), String(name)
+        )
+    )
+
+    # Columns, subtables (and others) share the same keyword namespace. We cannot add a
+    # subtable with existing keyword name.
+    idx = LibCasacore.fieldNumber(LibCasacore.keywordSet(parent.tableref), namestr)
+    if idx > 0
+        if LibCasacore.type(LibCasacore.keywordSet(parent.tableref), idx) != LibCasacore.TpTable
+            throw(ErrorException("Subtable name $(name) duplicates existing keyword"))
+        end
+
+        # Otherwise delete existing table
+        LibCasacore.deleteSubTable(parent.tableref, namestr, true)
+    end
+
+    # We do a copy, rather than a rename. This avoids mutating the sub, which is closer in
+    # in line with the semantics of setproperty!().
+    LibCasacore.deepCopy(sub.tableref, pathstr, TableOptions.New)
+    sub = LibCasacore.Table(pathstr, TableOptions.Old)
+
+    LibCasacore.defineTable(
+        LibCasacore.rwKeywordSet(parent.tableref), LibCasacore.RecordFieldId(namestr), sub
+    )
+
+    return Table(sub)  # Or return the original sub table?
 end
 
 flush(x::Table; fsync=true, recursive=true) = LibCasacore.flush(x.tableref, fsync, recursive)
