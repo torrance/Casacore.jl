@@ -368,6 +368,7 @@ JLCXX_MODULE define_julia_module(jlcxx::Module &mod) {
             wrapped.template constructor<const Table &, const String &>();
             wrapped.method("nrow", &TableColumn::nrow);
             wrapped.method("shapeColumn", &TableColumn::shapeColumn);
+            wrapped.method("fillColumn", &WrappedT::fillColumn);
             wrapped.method("getindex", &WrappedT::operator());
             wrapped.method("put", static_cast<void (WrappedT::*)(rownr_t, const T &)>(&WrappedT::put));
             wrapped.method("getColumn", [](const WrappedT & wrappedT) { return wrappedT.getColumn(); });
@@ -407,9 +408,11 @@ JLCXX_MODULE define_julia_module(jlcxx::Module &mod) {
             wrapped.template constructor<const Table &, const String &>();
             wrapped.method("nrow", &TableColumn::nrow);
             wrapped.method("ndim", &WrappedT::ndim);
+            wrapped.method("ndimColumn", &TableColumn::ndimColumn);
             wrapped.method("isDefined", &TableColumn::isDefined);
             wrapped.method("shape", &WrappedT::shape);
             wrapped.method("shapeColumn", &TableColumn::shapeColumn);
+            wrapped.method("fillColumn", &WrappedT::fillColumn);
             wrapped.method("get", static_cast<Array<T> (WrappedT::*)(rownr_t) const>(&WrappedT::get));
             wrapped.method("get", static_cast<void (WrappedT::*)(rownr_t, Array<T> &, Bool) const>(&WrappedT::get));
             wrapped.method("getColumn", [](const WrappedT & wrappedT) { return wrappedT.getColumn(); });

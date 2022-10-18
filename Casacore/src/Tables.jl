@@ -100,6 +100,49 @@ end
 
 Base.length(c::Column) = reduce(*, size(c))
 
+# Fill scalar column with value
+function Base.fill!(c::Column{T, 1, S}, x) where {T, N, S <: LibCasacore.ScalarColumn}
+    x = convert(T, x)
+    LibCasacore.fillColumn(c.columnref, x)
+    return c
+end
+
+# Fill array column with array
+function Base.fill!(c::Column{T, N, S}, x) where {T, N, S <: LibCasacore.ArrayColumn}
+    x = collect(eltype(T), x)
+
+    celldims = LibCasacore.ndimColumn(c.columnref)
+    cellshape = tuple(LibCasacore.shapeColumn(c.columnref)...)
+
+    # Special case: allow filling fixed array with single value
+    # We need to expand this value to an array
+    if N > 1 && length(x) == 1 && cellshape != ()
+        x = fill(x[], cellshape)
+    end
+
+    # Check dimensionality of fill value matches column
+    if cellshape != () && size(x) != cellshape
+        # Fixed size array
+        throw(DimensionMismatch("Expected fill!() value with size $(cellshape), got $(size(x))"))
+    elseif celldims != 0 && ndims(x) != celldims
+        # Fixed dimesion array
+        throw(DimensionMismatch("Expected fill!() value with $(celldims) dimensions, got $(ndims(x))"))
+    else
+        # No set dimension or size of cells! Anything goes...
+    end
+
+    GC.@preserve x begin
+        arr = LibCasacore.Array{LibCasacore.getcxxtype(eltype(T))}(
+            LibCasacore.IPosition(size(x)),
+            convert(Ptr{Cvoid}, pointer(x)),
+            LibCasacore.SHARE,
+        )
+        LibCasacore.fillColumn(c.columnref, arr)
+    end
+
+    return c
+end
+
 @inline function checkbounds(x::Column{T, N}, I::Vararg{Union{Int, Colon, OrdinalRange}, M}) where {T, N, M}
     if N != M
         throw(DimensionMismatch("Indexing into $(N)-dimensional Column with $(M) indices"))
