@@ -21,9 +21,10 @@ end
 
 
 # T denotes the element type; it must be a primitive type.
+# N denotes the dimensionality of the cell, not the full column
 #
 # Valid states:
-#   * Freeform array: N = -1; shape = nothing
+#   * Freeform array: N = 0; shape = nothing
 #   * Fixed dimension, variable shape: N >= 1, shape = nothing
 #   * Fixed dimension and shape: N >= 1, shape <: NTuple{N, Int}
 struct ArrayColumnDesc{T, N} <: ColumnDesc{T}
@@ -37,7 +38,7 @@ end
 function ArrayColumnDesc{T}(
     ; comment="",  datamanager=:StandardStMan, datagroup=Symbol()
 ) where T
-    return ArrayColumnDesc{T, -1}(nothing, comment, datamanager, datagroup)
+    return ArrayColumnDesc{T, 0}(nothing, comment, datamanager, datagroup)
 end
 
 # ArrayColumnDesc with fixed dimension
@@ -442,7 +443,7 @@ function Base.setindex!(x::Table, v::ArrayColumnDesc{T, N}, name::Symbol) where 
     end
 
     if v.shape == nothing
-        # Non-fixed shape, possibly non-fixed dimesions (if N = -1)
+        # Non-fixed shape, possibly non-fixed dimesions (if N = 0)
         columndesc = LibCasacore.ArrayColumnDesc{LibCasacore.getcxxtype(T)}(
             LibCasacore.String(name),
             LibCasacore.String(v.comment),
