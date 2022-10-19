@@ -155,6 +155,29 @@ end
     Base.checkbounds_indices(Bool, axes(x), I) || throw(BoundsError(x, I))
 end
 
+# Row index on array of arrays
+@inline function checkbounds(x::Column{T, 1, S}, i::Union{Int, Colon, OrdinalRange}) where {T, S <: LibCasacore.ArrayColumn}
+    Base.checkbounds_indices(Bool, axes(x), (i,)) || throw(BoundsError(x, i))
+end
+
+# Multidim index into array of arrays
+@inline function checkbounds(x::Column{T, 1, S}, I::Vararg{Union{Int, Colon, OrdinalRange}, M}) where {T, S <: LibCasacore.ArrayColumn, M}
+    # Base.ndims() is not defined is N is unset.
+    function ndims(::Type{P}) where {T, N, P <: Array{T, N}}
+        return N
+    end
+    function ndims(::Type{P}) where {T, P <: Array{T}}
+        return -1
+    end
+
+    # Perform dimension check if dimension is set for column
+    if ndims(T) >= 0 && ndims(T) + 1 != M
+        throw(DimensionMismatch("Indexing into $(1 + ndims(T))-dimensional Column with $(M) indices"))
+    end
+
+    Base.checkbounds_indices(Bool, axes(x), (I[end],)) || throw(BoundsError(x, I))
+end
+
 # Required for to_indices() to work
 Base.eachindex(::IndexLinear, A::Column) = (@inline; Base.oneto(length(A)))
 
@@ -241,10 +264,17 @@ end
 function Base.setindex!(c::Column{T, 1, S}, v, i::Int)::T where {T <: Array, S <: LibCasacore.ArrayColumn}
     @boundscheck checkbounds(c, i)
 
+    # Check dimensionality of value matches column
+    celldims = LibCasacore.ndimColumn(c.columnref)
+    if celldims != 0 && ndims(v) != celldims
+        # Fixed dimension array
+        throw(DimensionMismatch("Expected value with $(celldims) dimensions, got $(ndims(v))"))
+    end
+
     varray = collect(eltype(T), v)
     GC.@preserve varray begin
         arrayslice = LibCasacore.Array{LibCasacore.getcxxtype(eltype(T))}(
-            LibCasacore.IPosition(size(v)),
+            LibCasacore.IPosition(size(varray)),
             convert(Ptr{Cvoid}, pointer(varray)),
             LibCasacore.SHARE
         )
@@ -264,11 +294,12 @@ end
 
 # Multidimensional array indexing
 function Base.getindex(c::Column{T, N, S}, I::Vararg{Union{Int, Colon, OrdinalRange}, M}) where {T, N, M, S <: LibCasacore.ArrayColumn}
+    @boundscheck checkbounds(c, I...)
+
     # We have to do a little extra work if we are forcing a multidim index
     # into an array with no fixed size
     if N == 1 && T <: Array
         Icell, Irow = I[begin:end - 1], I[end]
-        @boundscheck checkbounds(c, Irow)
 
         Irow, = to_indices(c, (Irow,))
         if Colon() in Icell
@@ -277,7 +308,6 @@ function Base.getindex(c::Column{T, N, S}, I::Vararg{Union{Int, Colon, OrdinalRa
 
         I =  (Icell..., Irow)
     else
-        @boundscheck checkbounds(c, I...)
         I = to_indices(c, I)
     end
 
@@ -303,11 +333,12 @@ function Base.getindex(c::Column{T, N, S}, I::Vararg{Union{Int, Colon, OrdinalRa
 end
 
 function Base.setindex!(c::Column{T, N, S}, v, I::Vararg{Union{Int, Colon, OrdinalRange}, M}) where {T, N, M, S <: LibCasacore.ArrayColumn}
+    @boundscheck checkbounds(c, I...)
+
     # We have to do a little extra work if we are forcing a multidim index
     # into an array with no fixed size
     if N == 1 && T <: Array
         Icell, Irow = I[begin:end - 1], I[end]
-        @boundscheck checkbounds(c, Irow)
 
         Irow, = to_indices(c, (Irow,))
         if Colon() in Icell
@@ -316,7 +347,6 @@ function Base.setindex!(c::Column{T, N, S}, v, I::Vararg{Union{Int, Colon, Ordin
 
         I =  (Icell..., Irow)
     else
-        @boundscheck checkbounds(c, I...)
         I = to_indices(c, I)
     end
 

@@ -213,7 +213,7 @@ using Unitful
                     @test column[45] == vals
                     @test_throws BoundsError column[-2]
                     @test_throws DimensionMismatch column[45] = [1, 2, 3]
-                    @test_skip column[2, 45]
+                    @test_throws DimensionMismatch column[2, 45]
                     @inferred column[32]
                 end
 
@@ -250,7 +250,7 @@ using Unitful
                     @test column[1, 2, 34] == 2
                     @test typeof(column[1:1, 1:2, :]) <: Array{Int32, 3}
                     @test all(eachslice(column[1:1, 1:2, :], dims=3) .== [[1 2]])
-                    @test_throws ArgumentError column[:, :]
+                    @test_throws DimensionMismatch column[:, :]
                 end
             end
         end
@@ -279,6 +279,7 @@ using Unitful
                     @test column[2, 3, 45] == 3
                     @test_throws BoundsError column[4, 3, 45] = 2
                     @test_throws DimensionMismatch column[2, 3, 45] = [2, 3]
+                    @test_throws DimensionMismatch column[3, 45]
                     @inferred column[2, 3, 32]
                 end
 
