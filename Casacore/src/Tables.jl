@@ -324,7 +324,7 @@ function Base.setindex!(c::Column{T, N, S}, v, I::Vararg{Union{Int, Colon, Ordin
     Base.setindex_shape_check(varray, length.(I)...)
 
     # 1- to 0-based indexing
-    I = map(x -> x .- 1, I)
+    I = broadcast(.-, I, 1)
     rowslicer = LibCasacore.Slicer(I[end])
     cellslicer = LibCasacore.Slicer(I[1:(end - 1)]...)
 
