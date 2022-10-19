@@ -111,13 +111,16 @@ end
 # Fill array column with array
 function Base.fill!(c::Column{T, N, S}, x) where {T, N, S <: LibCasacore.ArrayColumn}
     x = collect(eltype(T), x)
+    if ndims(x) == 0
+        x = [x[]] # We need size() to report at least (1,)
+    end
 
     celldims = LibCasacore.ndimColumn(c.columnref)
     cellshape = tuple(LibCasacore.shapeColumn(c.columnref)...)
 
     # Special case: allow filling fixed array with single value
     # We need to expand this value to an array
-    if N > 1 && length(x) == 1 && cellshape != ()
+    if length(x) == 1 && cellshape != ()
         x = fill(x[], cellshape)
     end
 
