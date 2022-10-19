@@ -256,7 +256,7 @@ end
 function Base.setindex!(c::Column{T, 1, S}, v, i::Union{Int, Colon, OrdinalRange}) where {T <: Array, S <: LibCasacore.ArrayColumn}
     @boundscheck checkbounds(c, i)
     i, = to_indices(c, (i,))
-    for (idx, val) in zip(i, v)
+    broadcast(i, v) do idx, val
         @inbounds c[idx] = val
     end
     return v
