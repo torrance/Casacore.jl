@@ -501,7 +501,8 @@ function Base.setindex!(x::Table, v::ArrayColumnDesc{T, N}, name::Symbol) where 
     return v
 end
 
-function Base.setindex!(x::Table, v::Array{T, 1}, name::Symbol) where {T}
+# Add scalar column
+function Base.setindex!(x::Table, v::Vector{T}, name::Symbol) where {T}
     if size(x, 1) != length(v)
         throw(DimensionMismatch("Cannot assign column with $(length(v)) rows to table with $(size(x, 1)) rows"))
     end
@@ -511,18 +512,12 @@ function Base.setindex!(x::Table, v::Array{T, 1}, name::Symbol) where {T}
     x[name] = coldesc
 
     # Populate column with data from v
-    GC.@preserve v begin
-        vec = LibCasacore.Vector{LibCasacore.getcxxtype(T)}(
-            LibCasacore.IPosition(size(v)),
-            convert(Ptr{Cvoid}, pointer(v)),
-            LibCasacore.SHARE
-        )
-        LibCasacore.putColumn(x[name].columnref, vec)
-    end
+    x[name][:] = v
 
     return v
 end
 
+# Add fixed size array
 function Base.setindex!(x::Table, v::Array{T, N}, name::Symbol) where {T, N}
     if size(x, 1) != size(v, N)
         throw(DimensionMismatch("Cannot assign column with $(size(v, N)) rows to table with $(size(x, 1)) rows"))
@@ -533,14 +528,41 @@ function Base.setindex!(x::Table, v::Array{T, N}, name::Symbol) where {T, N}
     x[name] = coldesc
 
     # Populate column with data from v
-    GC.@preserve v begin
-        arr = LibCasacore.Array{LibCasacore.getcxxtype(T)}(
-            LibCasacore.IPosition(size(v)),
-            convert(Ptr{Cvoid}, pointer(v)),
-            LibCasacore.SHARE
-        )
-        LibCasacore.putColumn(x[name].columnref, arr)
+    # TODO: implemnt copy() instead
+    I = ntuple(_ -> :, N)
+    x[name][I...] = v
+
+    return v
+end
+
+# Add array of arrays column with known dimensionality
+function Base.setindex!(x::Table, v::Vector{T}, name::Symbol) where {N, M, T <: Array{M, N}}
+    if size(x, 1) != length(v)
+        throw(DimensionMismatch("Cannot assign column with $(size(v, N)) rows to table with $(size(x, 1)) rows"))
     end
+
+    # Create column
+    coldesc = ArrayColumnDesc{eltype(T), N}()
+    x[name] = coldesc
+
+    # Populate column with data from v
+    x[name][:] .= v
+
+    return v
+end
+
+# Add array of arrays column with unknown dimensionality
+function Base.setindex!(x::Table, v::Vector{T}, name::Symbol) where {M, T <: Array{M}}
+    if size(x, 1) != length(v)
+        throw(DimensionMismatch("Cannot assign column with $(size(v, N)) rows to table with $(size(x, 1)) rows"))
+    end
+
+    # Create column
+    coldesc = ArrayColumnDesc{eltype(T), 0}()
+    x[name] = coldesc
+
+    # Populate column with data from v
+    x[name][:] .= v
 
     return v
 end

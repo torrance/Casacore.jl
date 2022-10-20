@@ -114,21 +114,19 @@ using Unitful
         @testset "Array column with unknown dims" begin
             @testset "Add column" begin
                 # Explicitly
-                table[:ARR_UNKNOWN] = Tables.ArrayColumnDesc{ComplexF64}(
+                table[:ARR_UNKNOWN] = Tables.ArrayColumnDesc{UInt32}(
                     comment="I am a completely undefined column"
                 )
                 @test :ARR_UNKNOWN ∈ keys(table)
-                @test typeof(table[:ARR_UNKNOWN]) <: Tables.Column{Array{ComplexF64}, 1}
+                @test typeof(table[:ARR_UNKNOWN]) <: Tables.Column{Array{UInt32}, 1}
                 @test size(table[:ARR_UNKNOWN]) == (1_000,)
                 @test length(table[:ARR_UNKNOWN]) == 1_000
 
                 # Implicitly
-                @test_skip begin
-                    arr = Vector{Array{ComplexF64}}(undef, 1_000)
-                    fill!(arr, [])
-                    table[:ARR_UNKNOWN] = arr
-                    table[:ARR_UNKNOWN] <: Tables.Column{Array{ComplexF64}, 1}
-                end
+                arr = Vector{Array{ComplexF64}}(undef, 1_000)
+                fill!(arr, [])
+                table[:ARR_UNKNOWN] = arr
+                @test typeof(table[:ARR_UNKNOWN]) <: Tables.Column{Array{ComplexF64}, 1}
             end
 
             @testset "Indexing" begin
@@ -188,21 +186,19 @@ using Unitful
         @testset "Array column with unknown shape" begin
             @testset "Add column" begin
                 # Explicitly
-                table[:ARR_NOSHAPE] = Tables.ArrayColumnDesc{Int32, 2}(
+                table[:ARR_NOSHAPE] = Tables.ArrayColumnDesc{ComplexF64, 2}(
                     comment="I have 2 dimensions"
                 )
                 @test :ARR_NOSHAPE ∈ keys(table)
-                @test typeof(table[:ARR_NOSHAPE]) <: Tables.Column{Array{Int32, 2}, 1}
+                @test typeof(table[:ARR_NOSHAPE]) <: Tables.Column{Array{ComplexF64, 2}, 1}
                 @test size(table[:ARR_NOSHAPE]) == (1_000,)
                 @test length(table[:ARR_NOSHAPE]) == 1_000
 
                 # Implicitly
-                @test_skip begin
-                    arr = Vector{Array{ComplexF64, 2}}(undef, 1_000)
-                    fill!(arr, ones(2, 2))
-                    table[:ARR_NOSHAPE] = arr
-                    table[:ARR_NOSHAPE] <: Tables.Column{Array{ComplexF64, 2}, 1}
-                end
+                arr = Vector{Array{Int32, 2}}(undef, 1_000)
+                fill!(arr, ones(2, 2))
+                table[:ARR_NOSHAPE] = arr
+                @test typeof(table[:ARR_NOSHAPE]) <: Tables.Column{Array{Int32, 2}, 1}
             end
 
             @testset "Indexing" begin
