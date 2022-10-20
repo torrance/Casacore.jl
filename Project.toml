@@ -1,6 +1,6 @@
 name = "Casacore"
 uuid = "72bb1062-94f5-49fa-bb69-94b615203ad9"
-authors = ["Kirin Shila <me@kiranshila>", "Torrance Hodgson <torrance@pravic.xyz>", "and contributors"]
+authors = ["Torrance Hodgson <torrance@pravic.xyz>", "and contributors"]
 version = "0.1.0"
 
 [deps]
