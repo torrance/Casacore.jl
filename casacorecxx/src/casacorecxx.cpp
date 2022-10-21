@@ -5,13 +5,25 @@
 #include <casacore/casa/System/AppState.h>
 #include <casacore/casa/Utilities.h>
 #include <casacore/measures/Measures.h>
+#include <casacore/measures/Measures/MCBaseline.h>
 #include <casacore/measures/Measures/MCDirection.h>
+#include <casacore/measures/Measures/MCDoppler.h>
+#include <casacore/measures/Measures/MCEarthMagnetic.h>
 #include <casacore/measures/Measures/MCEpoch.h>
+#include <casacore/measures/Measures/MCFrequency.h>
 #include <casacore/measures/Measures/MCPosition.h>
+#include <casacore/measures/Measures/MCRadialVelocity.h>
+#include <casacore/measures/Measures/MCuvw.h>
 #include <casacore/measures/Measures/MeasConvert.h>
-#include <casacore/measures/Measures/MEpoch.h>
+#include <casacore/measures/Measures/MBaseline.h>
 #include <casacore/measures/Measures/MDirection.h>
+#include <casacore/measures/Measures/MDoppler.h>
+#include <casacore/measures/Measures/MEarthMagnetic.h>
+#include <casacore/measures/Measures/MEpoch.h>
+#include <casacore/measures/Measures/MFrequency.h>
 #include <casacore/measures/Measures/MPosition.h>
+#include <casacore/measures/Measures/MRadialVelocity.h>
+#include <casacore/measures/Measures/Muvw.h>
 #include <casacore/tables/Tables.h>
 #include <casacore/tables/TaQL.h>
 
@@ -68,9 +80,15 @@ namespace jlcxx {
     template<> struct SuperType<JuliaState> { typedef AppState type; };
     template<typename T> struct SuperType<ScalarColumnDesc<T>> { typedef BaseColumnDesc type; };
     template<typename T> struct SuperType<ArrayColumnDesc<T>> { typedef BaseColumnDesc type; };
-    template<> struct SuperType<MPosition> { typedef Measure type; };
-    template<> struct SuperType<MEpoch> { typedef Measure type; };
+    template<> struct SuperType<MBaseline> { typedef Measure type; };
     template<> struct SuperType<MDirection> { typedef Measure type; };
+    template<> struct SuperType<MDoppler> { typedef Measure type; };
+    template<> struct SuperType<MEarthMagnetic> { typedef Measure type; };
+    template<> struct SuperType<MEpoch> { typedef Measure type; };
+    template<> struct SuperType<MFrequency> { typedef Measure type; };
+    template<> struct SuperType<MPosition> { typedef Measure type; };
+    template<> struct SuperType<MRadialVelocity> { typedef Measure type; };
+    template<> struct SuperType<Muvw> { typedef Measure type; };
 }
 
 JLCXX_MODULE define_julia_module(jlcxx::Module &mod) {
@@ -471,16 +489,10 @@ JLCXX_MODULE define_julia_module(jlcxx::Module &mod) {
         .constructor<const Measure &, const Measure &>()
         .constructor<const Measure &, const Measure &, const Measure &>();
 
-    mod.add_type<MVPosition>("MVPosition")
-        // Can be supplied as (radial length, longitude, latitude)
-        .constructor<const Quantity &, const Quantity &, const Quantity &>()
-        .method("getLength", static_cast<Quantity (MVPosition::*)(const Unit &) const>(&MVPosition::getLength))
-        .method("getLong", static_cast<Double (MVPosition::*)(void) const>(&MVPosition::getLong))
-        .method("getLat", static_cast<Double (MVPosition::*)(void) const>(&MVPosition::getLat));
-
-    mod.add_type<MVEpoch>("MVEpoch")
-        .constructor<const Quantity &>()
-        .method("get", &MVEpoch::get);
+    mod.add_type<MVBaseline>("MVBaseline")
+        .constructor<double, double, double>() // Units: m
+        .method("getValue", static_cast<const Vector<double> & (MVBaseline::*)(void) const>(&MVBaseline::getValue))
+        .method("putVector", &MVBaseline::putVector);
 
     mod.add_type<MVDirection>("MVDirection")
         .constructor<const Quantity &, const Quantity &>()
@@ -488,7 +500,52 @@ JLCXX_MODULE define_julia_module(jlcxx::Module &mod) {
         .method("getLat", static_cast<Double (MVDirection::*)(void) const>(&MVDirection::getLat))
         .method("setAngle", &MVDirection::setAngle);
 
-    addmeasure<MEpoch, MVEpoch>(mod, "MEpoch");
+    mod.add_type<MVDoppler>("MVDoppler")
+        .constructor<double>() // dimensionless
+        .constructor<Quantity>() // velocity, will be divided by c
+        .method("getValue", &MVDoppler::getValue)
+        .method("putVector", &MVDoppler::putVector);
+
+    mod.add_type<MVEarthMagnetic>("MVEarthMagnetic")
+        .constructor<double, double, double>() // x,y,z vector in Tesla
+        .method("getValue", static_cast<const Vector<double> & (MVEarthMagnetic::*)(void) const>(&MVEarthMagnetic::getValue))
+        .method("putVector", &MVEarthMagnetic::putVector);
+
+    mod.add_type<MVEpoch>("MVEpoch")
+        .constructor<const Quantity &>()
+        .method("get", &MVEpoch::get);
+
+    mod.add_type<MVFrequency>("MVFrequency")
+        .constructor<double>()  // Hz
+        .method("getValue", &MVFrequency::getValue)
+        .method("putVector", &MVFrequency::putVector);
+
+    mod.add_type<MVPosition>("MVPosition")
+        // Can be supplied as (radial length, longitude, latitude)
+        .constructor<const Quantity &, const Quantity &, const Quantity &>()
+        // or x, y, z (m)
+        .constructor<double, double, double>()
+        .method("getLength", static_cast<Quantity (MVPosition::*)(const Unit &) const>(&MVPosition::getLength))
+        .method("getLong", static_cast<Double (MVPosition::*)(void) const>(&MVPosition::getLong))
+        .method("getLat", static_cast<Double (MVPosition::*)(void) const>(&MVPosition::getLat));
+
+    mod.add_type<MVRadialVelocity>("MVRadialVelocity")
+        .constructor<double>() // Unit: m/s
+        .method("getValue", &MVRadialVelocity::getValue)
+        .method("putVector", &MVRadialVelocity::putVector);
+
+    mod.add_type<MVuvw>("MVuvw")
+        .constructor<double, double, double>() // Units: m
+        .method("getValue", static_cast<const Vector<double> & (MVuvw::*)(void) const>(&MVuvw::getValue))
+        .method("putVector", &MVuvw::putVector);
+
+    addmeasure<MBaseline, MVBaseline>(mod, "MBaseline");
     addmeasure<MDirection, MVDirection>(mod, "MDirection");
+    addmeasure<MDoppler, MVDoppler>(mod, "MDoppler");
+    addmeasure<MEarthMagnetic, MVEarthMagnetic>(mod, "MEarthMagnetic");
+    addmeasure<MEpoch, MVEpoch>(mod, "MEpoch");
+    addmeasure<MFrequency, MVFrequency>(mod, "MFrequency");
     addmeasure<MPosition, MVPosition>(mod, "MPosition");
+    addmeasure<MRadialVelocity, MVRadialVelocity>(mod, "MRadialVelocity");
+    addmeasure<Muvw, MVuvw>(mod, "Muvw");
 }
