@@ -51,7 +51,8 @@ private:
 template<typename T, typename TV>
 void addmeasure(jlcxx::Module & mod, std::string mname) {
     mod.template add_type<typename T::Ref>(mname + "!Ref")
-        .template constructor<const typename T::Types, const MeasFrame &>();
+        .template constructor<const typename T::Types, const MeasFrame &>()
+        .template constructor<const typename T::Types, const MeasFrame &, const T &>();
 
     mod.template add_type<T>(mname, jlcxx::julia_base_type<Measure>())
         .template constructor<const T &>()  // copy()
@@ -71,6 +72,7 @@ void addmeasure(jlcxx::Module & mod, std::string mname) {
         .method(static_cast<const T & (T::Convert::*)(void)>(&T::Convert::operator()))
         .method(static_cast<const T & (T::Convert::*)(const T &)>(&T::Convert::operator()))
         .method(static_cast<const T & (T::Convert::*)(const TV &)>(&T::Convert::operator()))
+        .method(static_cast<const T & (T::Convert::*)(const Vector<Double> &)>(&T::Convert::operator()))
         .method("setModel", &T::Convert::setModel)
         .method("setOut", static_cast<void (T::Convert::*)(const typename T::Ref &)>(&T::Convert::setOut));
 }
@@ -492,13 +494,17 @@ JLCXX_MODULE define_julia_module(jlcxx::Module &mod) {
     mod.add_type<MVBaseline>("MVBaseline")
         .constructor<double, double, double>() // Units: m
         .method("getValue", static_cast<const Vector<double> & (MVBaseline::*)(void) const>(&MVBaseline::getValue))
+        .method("getVector", &MVBaseline::getVector)
         .method("putVector", &MVBaseline::putVector);
 
     mod.add_type<MVDirection>("MVDirection")
         .constructor<const Quantity &, const Quantity &>()
+        .constructor<double, double>() // direction cosines
         .method("getLong", static_cast<Double (MVDirection::*)(void) const>(&MVDirection::getLong))
         .method("getLat", static_cast<Double (MVDirection::*)(void) const>(&MVDirection::getLat))
-        .method("setAngle", &MVDirection::setAngle);
+        .method("setAngle", &MVDirection::setAngle)
+        .method("getVector", &MVDirection::getVector)
+        .method("putVector", &MVDirection::putVector);
 
     mod.add_type<MVDoppler>("MVDoppler")
         .constructor<double>() // dimensionless
@@ -509,15 +515,20 @@ JLCXX_MODULE define_julia_module(jlcxx::Module &mod) {
     mod.add_type<MVEarthMagnetic>("MVEarthMagnetic")
         .constructor<double, double, double>() // x,y,z vector in Tesla
         .method("getValue", static_cast<const Vector<double> & (MVEarthMagnetic::*)(void) const>(&MVEarthMagnetic::getValue))
+        .method("getVector", &MVEarthMagnetic::getVector)
         .method("putVector", &MVEarthMagnetic::putVector);
 
     mod.add_type<MVEpoch>("MVEpoch")
         .constructor<const Quantity &>()
-        .method("get", &MVEpoch::get);
+        .constructor<double>()  // Units: days
+        .method("get", &MVEpoch::get)
+        .method("getVector", &MVEpoch::getVector)
+        .method("putVector", &MVEpoch::putVector);
 
     mod.add_type<MVFrequency>("MVFrequency")
         .constructor<double>()  // Hz
         .method("getValue", &MVFrequency::getValue)
+        .method("getVector", &MVFrequency::getVector)
         .method("putVector", &MVFrequency::putVector);
 
     mod.add_type<MVPosition>("MVPosition")
@@ -527,16 +538,20 @@ JLCXX_MODULE define_julia_module(jlcxx::Module &mod) {
         .constructor<double, double, double>()
         .method("getLength", static_cast<Quantity (MVPosition::*)(const Unit &) const>(&MVPosition::getLength))
         .method("getLong", static_cast<Double (MVPosition::*)(void) const>(&MVPosition::getLong))
-        .method("getLat", static_cast<Double (MVPosition::*)(void) const>(&MVPosition::getLat));
+        .method("getLat", static_cast<Double (MVPosition::*)(void) const>(&MVPosition::getLat))
+        .method("getVector", &MVPosition::getVector)
+        .method("putVector", &MVPosition::putVector);
 
     mod.add_type<MVRadialVelocity>("MVRadialVelocity")
         .constructor<double>() // Unit: m/s
         .method("getValue", &MVRadialVelocity::getValue)
+        .method("getVector", &MVRadialVelocity::getVector)
         .method("putVector", &MVRadialVelocity::putVector);
 
     mod.add_type<MVuvw>("MVuvw")
         .constructor<double, double, double>() // Units: m
         .method("getValue", static_cast<const Vector<double> & (MVuvw::*)(void) const>(&MVuvw::getValue))
+        .method("getVector", &MVuvw::getVector)
         .method("putVector", &MVuvw::putVector);
 
     addmeasure<MBaseline, MVBaseline>(mod, "MBaseline");
