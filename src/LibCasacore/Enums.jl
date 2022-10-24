@@ -1,14 +1,3 @@
-module TableOptions
-    using casacorecxx_jll
-    using CxxWrap
-
-    @wrapmodule(libcasacorecxx, :define_module_tableoption)
-
-    function __init__()
-        @initcxx
-    end
-end
-
 module BaselineTypes
     using casacorecxx_jll
     using CxxWrap

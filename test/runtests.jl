@@ -17,7 +17,7 @@ using Unitful
         local table::Tables.Table
 
         @testset "Create table" begin
-            table = Tables.Table(joinpath(mktempdir(), "test.ms"), Tables.TableOptions.Scratch)
+            table = Tables.Table(joinpath(mktempdir(), "test.ms"), Tables.Scratch)
             @test size(table) == (0, 0)
         end
 

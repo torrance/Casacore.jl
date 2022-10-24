@@ -3,7 +3,16 @@ module Tables
 export taql
 
 using ..LibCasacore
-using ..LibCasacore: TableOptions
+using CEnum
+
+@cenum TableOptions begin
+    Old=1
+    New
+    NewNoReplace
+    Scratch
+    Update
+    Delete
+end
 
 abstract type ColumnDesc{T} end
 
@@ -374,18 +383,18 @@ struct Table
     tableref::LibCasacore.TableAllocated
 end
 
-function Table(path::String, tableoption::TableOptions.TableOption=TableOptions.Old)
+function Table(path::String, tableoption::TableOptions=Old)
     path = LibCasacore.String(path)
 
-    if tableoption ∈ (TableOptions.Old, TableOptions.Update)
+    if tableoption ∈ (Old, Update)
         # Open existing table
-        tableref = LibCasacore.Table(path, tableoption)
+        tableref = LibCasacore.Table(path, Int(tableoption))
     elseif tableoption ∈ (
-        TableOptions.New, TableOptions.NewNoReplace, TableOptions.Update, TableOptions.Scratch
+        New, NewNoReplace, Update, Scratch
     )
         # Create new table, possibly replacing old one
         tableref = LibCasacore.Table(LibCasacore.Plain)
-        LibCasacore.rename(tableref, path, tableoption)
+        LibCasacore.rename(tableref, path, Int(tableoption))
     else
         throw(ArugmentError("Invalid TableOption argument"))
     end
@@ -634,8 +643,8 @@ function Base.setproperty!(parent::Table, name::Symbol, sub::Table)
 
     # We do a copy, rather than a rename. This avoids mutating the sub, which is closer in
     # in line with the semantics of setproperty!().
-    LibCasacore.deepCopy(sub.tableref, pathstr, TableOptions.New)
-    sub = LibCasacore.Table(pathstr, TableOptions.Old)
+    LibCasacore.deepCopy(sub.tableref, pathstr, Int(New))
+    sub = LibCasacore.Table(pathstr, Int(Old))
 
     LibCasacore.defineTable(
         LibCasacore.rwKeywordSet(parent.tableref), LibCasacore.RecordFieldId(namestr), sub

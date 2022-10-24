@@ -8,7 +8,7 @@ This package provides a high-level interface to use Casacore from Julia.
 
 This package uses [casacorecxx](https://github.com/torrance/casacorecxx) which uses [CxxWrap](https://github.com/JuliaInterop/CxxWrap.jl) to wrap the C++ Casacore codebase. These raw objects and methods are available in `Casacore.LibCasacore`.
 
-Casacore is a very large package, and this Julia interface has been developed with specific usecases in mind, limited by the authors own experience. Please open an issue to discuss extending this package in ways that are more suitable to your own usecase.
+Casacore is a very large package, and this Julia interface has been developed with specific usecases in mind, limited by the author's own experience. Please open an issue to discuss extending this package in ways that are more suitable to your own usecase.
 
 ## Installation
 
@@ -18,13 +18,13 @@ Casacore.jl is installable in the usual way:
 ] add Casacore
 ```
 
-Casacore will install all its own dependencies including Casacore itself.
+Casacore.jl will install all of its own dependencies including Casacore itself.
 
-Casacore only works on Linux x86_64 due to the current supported architectures of `casacore_jll`.
+Casacore.jl is limited to the currently supported architectures of `casacore_jll`.
 
-## Updating the ephermis data
+## Updating the ephemeris data
 
-When installing Casacore.jl, the build step downloads and installs the latest ephermis data used in `Casacore.Measures`. To update this dataset with a later version, the build step can be manually rerun:
+When installing Casacore.jl, the build step downloads and installs the latest ephermis data for use in `Casacore.Measures`. To update this dataset with a later version, the build step can be manually rerun:
 
 ```julia
 ] build Casacore
@@ -34,19 +34,19 @@ When installing Casacore.jl, the build step downloads and installs the latest ep
 
 ### Opening and creating new tables
 
-Tables can be opened as such:
+Tables can be opened or created in the following way:
 
 ```julia
-using Casacore.Tables: Table, TableOptions
+using Casacore.Tables: Tables, Table
 
 # Open existing table, read only
-table = Table("/path/to/my/table.ms", TableOptions.Old)
+table = Table("/path/to/my/table.ms", Tables.Old)
 
 # Open existing table, read/write
-table = Table("/path/to/my/table.ms", TableOptions.Update)
+table = Table("/path/to/my/table.ms", Tables.Update)
 
 # Create a new, empty table
-table = Table("/path/to/my/table.ms", TableOptions.New)
+table = Table("/path/to/my/table.ms", Tables.New)
 ```
 
 Other TableOptions are listed below:
@@ -180,7 +180,7 @@ flags[:] <: Vector{Bool}
 
 corrected = table[:CORRECTED_DATA]  # <: Column{ComplexF64, 3}
 size(corrected) == (4, 768, 260000)
-corrected[1:4, 1:192, :] <: Array{ComplexF64, 3}
+corrected[:, 1:192, :] <: Array{ComplexF64, 3}
 ```
 
 Columns that do not have a fixed size will be typed as providing arrays of arrays. For example:
@@ -234,7 +234,7 @@ coldesc = ArrayColumnDesc{ComplexF64, 2}()
 table[:NEWCOL] = coldesc
 typeof(table[:NEWCOL]) <: Column{Array{ComplexF64, 2}, 1}
 
-# Unknown dimesion and size
+# Unknown dimension and size
 coldesc = ArrayColumnDesc{Int16}()
 table[:NEWCOL] = coldesc
 typeof(table[:NEWCOL]) <: Column{Array{Int16}, 1}
@@ -244,7 +244,7 @@ Explicit column construction in this way allows adding comments to the column as
 
 #### Implicit construction
 
-Columns may also be added by simply assiging an array to your table where the type of the array will determine the type of the column. This will additionally populate the column with the contents of the array.
+Columns may also be added by simply assigning an array to your table where the type of the array will determine the type of the column. This will additionally populate the column with the contents of the array.
 
 For example:
 
@@ -291,7 +291,7 @@ size(derived[:MAXANT]) == (228780,)
 
 Command accepts a standard Julia `String`, however note that in this case we've prefixed the string with `raw"..."` which stops Julia attempting to interpolate the `$1` table identifier. If you use a standard string literal, ensure such identifiers are properly escaped.
 
-### Measures
+## Casacore.Measures
 
 Measures allow constructing objects that contain a value with respect to a particular reference frame. Examples include: an Altitude/Azimuth frame with respect to a particular location and time on Earth; a Right Ascension/Declination on the sky with respect to the J2000 system; or a time in UTC timezone.
 
@@ -315,6 +315,10 @@ direction = Measures.mconvert(direction, Measures.DirectionTypes.AZEL, pos, time
 
 long(direction), lat(direction)  # -1.2469808464138252 rad, 0.48889373998953756 rad
 ```
+
+## Casacore.LibCasacore
+
+All objects and methods that are exposed by CxxWrap are available in LibCasacore.
 
 ## Still to do
 

@@ -13,16 +13,6 @@
 
 using namespace casacore;
 
-JLCXX_MODULE define_module_tableoption(jlcxx::Module &mod) {
-    mod.add_bits<Table::TableOption>("TableOption", jlcxx::julia_type("CppEnum"));
-    mod.set_const("Old", Table::Old);
-    mod.set_const("New", Table::New);
-    mod.set_const("NewNoReplace", Table::NewNoReplace);
-    mod.set_const("Scratch", Table::Scratch);
-    mod.set_const("Update", Table::Update);
-    mod.set_const("Delete", Table::Delete);
-}
-
 JLCXX_MODULE define_module_mbaseline(jlcxx::Module &mod) {
     mod.add_bits<MBaseline::Types>("Types", jlcxx::julia_type("CppEnum"));
     mod.set_const("J2000", MBaseline::J2000);
