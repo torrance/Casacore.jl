@@ -4,8 +4,6 @@ using casacorecxx_jll
 using CxxWrap
 using Pkg.Artifacts
 
-include("LibCasacore/Enums.jl")
-
 @wrapmodule(libcasacorecxx)
 
 function __init__()
@@ -20,7 +18,7 @@ end
 # Vector: implements iteration, indexing
 Base.length(x::Vector)::Int = reduce(*, Base.size(x))
 Base.size(x::Vector)::Tuple{Int} = Tuple(shape(x)...)
-Base.getindex(x::Vector, i) = getindex(x, i - 1)
+Base.getindex(x::Vector, i) = getindex(x, i - 1)[]
 Base.firstindex(::Vector) = 1
 Base.lastindex(x::Vector) = length(x)
 Base.eltype(x::Vector) = typeof(x[1])

@@ -50,9 +50,10 @@ private:
 // This is due to circular type dependencies in signatures that cause errors in Julia.
 template<typename T, typename TV>
 void addmeasure(jlcxx::Module & mod, std::string mname) {
+    mod.template add_bits<typename T::Types>(mname + "!Types", jlcxx::julia_type("CppEnum"));
+
     mod.template add_type<typename T::Ref>(mname + "!Ref")
-        .template constructor<const typename T::Types, const MeasFrame &>()
-        .template constructor<const typename T::Types, const MeasFrame &, const T &>();
+        .template constructor<const typename T::Types, const MeasFrame &>();
 
     mod.template add_type<T>(mname, jlcxx::julia_base_type<Measure>())
         .template constructor<const T &>()  // copy()
@@ -64,17 +65,37 @@ void addmeasure(jlcxx::Module & mod, std::string mname) {
         .method("getRef", &T::getRef)
         .method("getRefString", &T::getRefString)
         .method("tellMe", &T::tellMe)
-        .method("set", static_cast<void (T::*)(const TV &)>(&T::set));
+        .method("set", static_cast<void (T::*)(const TV &)>(&T::set))
+        .method("getValue", [](T & m, size_t i) {
+            // This is a cheeky convenience method that avoids allocations in Julia.
+            return m.getValue().getVector()[i];
+        });
 
     mod.template add_type<typename T::Convert>(mname + "!Convert")
         .template constructor<const T &, const typename T::Ref &>()
+        .template constructor<typename T::Types, const typename T::Ref &>()
         .template constructor<const typename T::Ref &, const typename T::Ref &>()
         .method(static_cast<const T & (T::Convert::*)(void)>(&T::Convert::operator()))
         .method(static_cast<const T & (T::Convert::*)(const T &)>(&T::Convert::operator()))
         .method(static_cast<const T & (T::Convert::*)(const TV &)>(&T::Convert::operator()))
         .method(static_cast<const T & (T::Convert::*)(const Vector<Double> &)>(&T::Convert::operator()))
         .method("setModel", &T::Convert::setModel)
-        .method("setOut", static_cast<void (T::Convert::*)(const typename T::Ref &)>(&T::Convert::setOut));
+        .method("setOut", static_cast<void (T::Convert::*)(const typename T::Ref &)>(&T::Convert::setOut))
+        .method("convert!", [](typename T::Convert & c, T & min, T & mout) {
+            mout.set(c(min.getValue()).getValue());
+        });
+
+    // Add T::Ref::set() here as we need T to have been defined
+    mod.method("set", [](typename T::Ref & ref, const T & offset){
+        return ref.set(offset);
+    });
+
+    // Add a modified putVector to avoid temporary Julia allocations of IPosition and Vector
+    mod.method("putVector", [](TV & mv, double * ptr, ssize_t length) {
+        IPosition ipos{length};
+        Vector<double> vec{ipos, ptr, SHARE};
+        mv.putVector(vec);
+    });
 }
 
 // Define super types to allow upcasting, which in turn allows class hierarchies
@@ -329,6 +350,8 @@ JLCXX_MODULE define_julia_module(jlcxx::Module &mod) {
 
     mod.add_type<TSMOption>("TSMOption");
 
+    mod.add_bits<Table::TableOption>("TableOption", jlcxx::julia_type("CppEnum"));
+
     mod.add_type<TableLock>("TableLock")
         .constructor<const TableLock &>();
 
@@ -500,9 +523,11 @@ JLCXX_MODULE define_julia_module(jlcxx::Module &mod) {
     mod.add_type<MVDirection>("MVDirection")
         .constructor<const Quantity &, const Quantity &>()
         .constructor<double, double>() // direction cosines
+        .constructor<double, double, double>() // xyz, Units: m
         .method("getLong", static_cast<Double (MVDirection::*)(void) const>(&MVDirection::getLong))
         .method("getLat", static_cast<Double (MVDirection::*)(void) const>(&MVDirection::getLat))
         .method("setAngle", &MVDirection::setAngle)
+        .method("getValue", &MVDirection::getValue)
         .method("getVector", &MVDirection::getVector)
         .method("putVector", &MVDirection::putVector);
 
@@ -539,6 +564,7 @@ JLCXX_MODULE define_julia_module(jlcxx::Module &mod) {
         .method("getLength", static_cast<Quantity (MVPosition::*)(const Unit &) const>(&MVPosition::getLength))
         .method("getLong", static_cast<Double (MVPosition::*)(void) const>(&MVPosition::getLong))
         .method("getLat", static_cast<Double (MVPosition::*)(void) const>(&MVPosition::getLat))
+        .method("getValue", &MVPosition::getValue)
         .method("getVector", &MVPosition::getVector)
         .method("putVector", &MVPosition::putVector);
 

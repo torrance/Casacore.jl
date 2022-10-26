@@ -1,16 +1,79 @@
 using Casacore.Tables
 using Casacore.Measures
+using Casacore.Measures.Directions
+using Casacore.Measures.Epochs
+using Casacore.Measures.Frequencies
+using Casacore.Measures.Positions
+using Casacore.Measures.RadialVelocities
 using Test
 
 using Unitful
 
 @testset "Casacore.jl" begin
     @testset "Measures" begin
-        pos = Measures.Position(Measures.PositionTypes.ITRF, 1u"km", 0u"rad", 0u"rad")
-        time = Measures.Epoch(Measures.EpochTypes.UTC, 1234567u"d")
-        direction = Measures.Direction(Measures.DirectionTypes.J2000, 0u"rad", 0u"rad")
-        direction = mconvert(direction, Measures.DirectionTypes.AZEL, pos, time)
-        @test typeof(direction) <: Measures.Direction
+        @testset "Direction conversion J2000 to AZEL (and back again)" begin
+            direction = Directions.Direction(Directions.J2000, π, π/2)
+            show(devnull, direction)
+
+            # Getters/setters
+            @test (direction.long -= π/4) ≈ 3π/4
+            @test direction.long ≈ 3π/4
+            @test (direction.lat -= π/2) ≈ 0
+            @test direction.lat ≈ 0
+            direction.lat = 0
+
+            # Create reference frame measures
+            pos = Positions.Position(Positions.ITRF, 1000, 0, 0)
+            t = Epochs.Epoch(Epochs.UTC, 1234567)
+
+            show(devnull, t)
+            show(devnull, pos)
+
+            # Getters/setters
+            @test (pos.x += 1) == 1001
+            @test pos.x == 1001
+            @test (pos.y += 3) == 3
+            @test pos.y == 3
+            @test (pos.z += 5) == 5
+            @test pos.z == 5
+
+            @test (t.time += 1) == 1234568
+            @test t.time == 1234568
+
+            convert = Measures.Converter(Directions.J2000, Directions.AZEL, t, pos)
+            Measures.mconvert!(direction, direction, convert)
+
+            @test !isapprox(direction.lat , 0, atol=1e-4)  # Check that the conversion does something
+
+            convert = Measures.Converter(Directions.AZEL, Directions.J2000, t, pos)
+            Measures.mconvert!(direction, direction, convert)
+
+            @test isapprox(direction.lat, 0, atol=1e-4)
+            @test isapprox(direction.long, 3π/4, atol=1e-4)
+        end
+
+        @testset "Frequency conversion REST to LSRD" begin
+            freq = Frequencies.Frequency(Frequencies.REST, 1_420_405_752)
+            show(devnull, freq)
+
+            @test (freq.freq +=1) == 1_420_405_753
+            @test freq.freq == 1_420_405_753
+
+            direction = Directions.Direction(Directions.J2000, 0, π/2)
+            velocity = RadialVelocities.RadialVelocity(RadialVelocities.LSRD, 20_000_000, direction)
+            show(devnull, velocity)
+
+            @test (velocity.velocity += 1) == 20_000_001
+            @test velocity.velocity == 20_000_001
+
+            convert = Measures.Converter(Frequencies.REST, Frequencies.LSRD, velocity, direction)
+            Measures.mconvert!(freq, freq, convert)
+            @test freq.freq != 1_420_405_753  # Check that the conversion does something
+
+            convert = Measures.Converter(Frequencies.LSRD, Frequencies.REST, velocity, direction)
+            Measures.mconvert!(freq, freq, convert)
+            @test freq.freq ≈ 1_420_405_753
+        end
     end
 
     @testset "Tables" begin

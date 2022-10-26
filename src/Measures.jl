@@ -1,132 +1,61 @@
 module Measures
 
-using Unitful
-
 using ..LibCasacore
-using ..LibCasacore.DirectionTypes
-using ..LibCasacore.EpochTypes
-using ..LibCasacore.PositionTypes
 
-export long, lat, radius, days, mconvert
+abstract type AbstractMeasure end
 
-abstract type Measure end
+function Base.show(io::IO, x::AbstractMeasure)
+    write(io, "$(typeof(x))(")
+    join(io, (":$(p)=$(getproperty(x, p))" for p in propertynames(x)), ", ")
+    write(io, ")")
+end
 
-for m in (:Direction, :Epoch, :Position)
-    @eval begin
-        struct $m <: Measure
-            cxx_object::LibCasacore.$(Symbol("M", m, "Allocated"))
-        end
+struct Converter{T, S}
+    in::S
+    out::S
+    cxx_object::T
+end
 
-        referencestr(x::$m) = Symbol(LibCasacore.getRefString(x.cxx_object))
+function mconvert!(out::AbstractMeasure, in::AbstractMeasure, c::Converter)
+    @assert(c.in == in.type)
+    LibCasacore.convert!(c.cxx_object, in.m, out.m)
+    # m = c.cxx_object(LibCasacore.getValue(in.m))
+    # LibCasacore.set(out.m, LibCasacore.getValue(m))
+    out.type = c.out
+end
 
-        function mconvert(direction::$m, type::$(Symbol(m, "Types")).Types, measures::Vararg{Measure})
-            return $m(
-                copy(
-                    LibCasacore.$(Symbol("M", m, "!Convert"))(
-                        direction.cxx_object,
-                        LibCasacore.$(Symbol("M", m, "!Ref"))(
-                            type,
-                            LibCasacore.MeasFrame((m.cxx_object for m in measures)...)
-                        )
-                    )()
-                )
-            )
-        end
+function _setdata!(x::AbstractMeasure, data::AbstractVector{Float64})
+    GC.@preserve data begin
+        LibCasacore.putVector(x.mv, pointer(data), length(data))
+        LibCasacore.set(x.m, x.mv)
     end
 end
 
-function Direction(
-    type::DirectionTypes.Types, angle1::Quantity, angle2::Quantity;
-    offset::Union{Nothing, Direction}=nothing
-)
-    mdirection = LibCasacore.MDirection(
-        LibCasacore.MVDirection(
-            LibCasacore.Quantity(
-                ustrip(u"rad", angle1), LibCasacore.String("rad")
-            ),
-            LibCasacore.Quantity(
-                ustrip(u"rad", angle2), LibCasacore.String("rad")
-            )
-        ),
-        type
-    )
-
-    if offset !== nothing
-        mdirection.setOffset(offset.mdirection)
-    end
-
-    return Direction(mdirection)
-end
-
-long(x::Direction) = LibCasacore.getLong(LibCasacore.getValue(x.cxx_object)) * Unitful.rad
-lat(x::Direction) = LibCasacore.getLat(LibCasacore.getValue(x.cxx_object)) * Unitful.rad
-
-function Base.show(io::IO, x::Direction)
-    write(io, "Direction($(referencestr(x)), $(long(x)), $(lat(x)))")
-end
-
-function Epoch(
-    type::EpochTypes.Types, duration::Quantity;
-    offset::Union{Nothing, Epoch}=nothing
-)
-    mepoch = LibCasacore.MEpoch(
-        LibCasacore.MVEpoch(
-            LibCasacore.Quantity(
-                ustrip(u"d", duration), LibCasacore.String("d")
-            )
-        ),
-        type
-    )
-
-    if offset !== nothing
-        mepoch.setOffset(offset.cxx_object)
-    end
-
-    return Epoch(mepoch)
-end
-
-days(x::Epoch) = LibCasacore.get(LibCasacore.getValue(x.cxx_object)) * Unitful.d
-
-function Base.show(io::IO, x::Epoch)
-    write(io, "Epoch($(referencestr(x)), $(days(x)))")
-end
-
-function Position(
-    type::PositionTypes.Types, r::Quantity, long::Quantity, lat::Quantity;
-    offset::Union{Nothing, Position}=nothing
-)
-    mposition = LibCasacore.MPosition(
-        LibCasacore.MVPosition(
-            LibCasacore.Quantity(
-                ustrip(u"m", r), LibCasacore.String("m")
-            ),
-            LibCasacore.Quantity(
-                ustrip(u"rad", long), LibCasacore.String("rad")
-            ),
-            LibCasacore.Quantity(
-                ustrip(u"rad", lat), LibCasacore.String("rad")
-            ),
-        ),
-        type
-    )
-
-    if offset !== nothing
-        mposition.setOffset(offset.cxx_object)
-    end
-
-    return Position(mposition)
-end
-
-radius(x::Position) = LibCasacore.getValue(
-    LibCasacore.getLength(
-        LibCasacore.getValue(x.cxx_object),
-        LibCasacore.Unit(LibCasacore.String("m"))
-))[] * Unitful.m
-long(x::Position) = LibCasacore.getLong(LibCasacore.getValue(x.cxx_object)) * Unitful.rad
-lat(x::Position) = LibCasacore.getLat(LibCasacore.getValue(x.cxx_object)) * Unitful.rad
-
-function Base.show(io::IO, x::Position)
-    write(io, "Position($(referencestr(x)), $(radius(x)), $(long(x)), $(lat(x)))")
-end
+include("Measures/Directions.jl")
+include("Measures/Epochs.jl")
+include("Measures/Frequencies.jl")
+include("Measures/Positions.jl")
+include("Measures/RadialVelocities.jl")
 
 end
+
+
+#=
+
+using Casacore.Measures: Directions, Positions, Epochs, Converter, mconvert!
+using BenchmarkTools
+
+direction = Directions.Direction(Directions.J2000, π, π/2)
+pos = Positions.Position(Positions.ITRF, 1000, 0, 0)
+t = Epochs.Epoch(Epochs.UTC, 1234567)
+convert = Converter(Directions.J2000, Directions.AZEL, t, pos)
+
+vals = eachcol(rand(2, 128*128))
+@benchmark foreach(vals) do longlat
+    direction.long = longlat[1]
+    direction.lat = longlat[2]
+    direction.type = Directions.J2000
+    mconvert!(direction, direction, convert)
+end
+
+=#
