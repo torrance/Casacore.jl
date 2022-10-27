@@ -31,11 +31,15 @@ function _setdata!(x::AbstractMeasure, data::AbstractVector{Float64})
     end
 end
 
+include("Measures/Baselines.jl")
+include("Measures/Dopplers.jl")
 include("Measures/Directions.jl")
+include("Measures/EarthMagnetics.jl")
 include("Measures/Epochs.jl")
 include("Measures/Frequencies.jl")
 include("Measures/Positions.jl")
 include("Measures/RadialVelocities.jl")
+include("Measures/UVWs.jl")
 
 end
 

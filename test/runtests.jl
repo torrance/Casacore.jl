@@ -1,10 +1,14 @@
 using Casacore.Tables
 using Casacore.Measures
+using Casacore.Measures.Baselines
 using Casacore.Measures.Directions
+using Casacore.Measures.Dopplers
+using Casacore.Measures.EarthMagnetics
 using Casacore.Measures.Epochs
 using Casacore.Measures.Frequencies
 using Casacore.Measures.Positions
 using Casacore.Measures.RadialVelocities
+using Casacore.Measures.UVWs
 using Test
 
 using Unitful
@@ -72,6 +76,59 @@ using Unitful
             convert = Measures.Converter(Frequencies.LSRD, Frequencies.REST, velocity, direction)
             Measures.mconvert!(freq, freq, convert)
             @test freq.freq ≈ 1_420_405_753u"Hz"
+        end
+
+        @testset "EarthMagnetic conversion ITRF to AZEL" begin
+            pos = Positions.Position(Positions.ITRF, 6378.1u"km", 0u"km", 0u"km")
+            time = Epochs.Epoch(Epochs.DEFAULT, 59857u"d")
+
+            bfield = EarthMagnetics.EarthMagnetic(EarthMagnetics.DEFAULT, -1u"T", -1u"T", -1u"T")
+
+            @test (bfield.x += 1u"T") == 0u"T"
+            @test bfield.x == 0u"T"
+            @test (bfield.y += 2u"T") == 1u"T"
+            @test bfield.y == 1u"T"
+            @test (bfield.z += 5u"T") == 4u"T"
+            @test bfield.z == 4u"T"
+
+            convert = Measures.Converter(EarthMagnetics.DEFAULT, EarthMagnetics.AZEL, pos, time)
+
+            Measures.mconvert!(bfield, bfield, convert)
+            @test 10_000u"nT" < hypot(bfield.x, bfield.y, bfield.z) < 100_000u"nT"  # A reasonable range
+        end
+
+        @testset "Baseline conversion from ITRF to J2000 to UVW" begin
+            refpos = Positions.Position(Positions.ITRF, 6378.1u"km", 0u"km", 0u"km")
+            time = Epochs.Epoch(Epochs.DEFAULT, 59857u"d")
+            refdirection = Directions.Direction(Directions.J2000, 27u"°", 25u"°")
+
+            baseline = Baselines.Baseline(Baselines.ITRF, 1u"km", 1u"km", 1u"km")
+
+            @test (baseline.x += 2u"km") == 3u"km"
+            @test baseline.x == 3u"km"
+            @test (baseline.y += 1u"km") == 2u"km"
+            @test baseline.y == 2u"km"
+            @test (baseline.z -= 2u"km") == -1u"km"
+            @test baseline.z == -1u"km"
+
+            length = hypot(baseline.x, baseline.y, baseline.z)
+
+            # Why is refdirection needed for Baseline conversion? It has no effect.
+            convert = Measures.Converter(Baselines.ITRF, Baselines.J2000, refdirection, refpos, time)
+            Measures.mconvert!(baseline, baseline, convert)
+            @test hypot(baseline.x, baseline.y, baseline.z) ≈ length
+        end
+
+        @testset "Doppler conversions" begin
+            doppler = Dopplers.Doppler(Dopplers.RADIO, 20_000u"km/s")
+            doppler = Dopplers.Doppler(Dopplers.Z, 0.023)
+
+            convert = Measures.Converter(Dopplers.Z, Dopplers.RADIO)
+            Measures.mconvert!(doppler, doppler, convert)
+            @test doppler.doppler == 1 - 1/(0.023 + 1)
+
+            @test (doppler.doppler = 2) == 2
+            @test doppler.doppler == 2
         end
     end
 

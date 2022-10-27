@@ -576,6 +576,7 @@ JLCXX_MODULE define_julia_module(jlcxx::Module &mod) {
 
     mod.add_type<MVuvw>("MVuvw")
         .constructor<double, double, double>() // Units: m
+        .constructor<const MVBaseline &, const MVDirection &, Bool>() // Special constructor
         .method("getValue", static_cast<const Vector<double> & (MVuvw::*)(void) const>(&MVuvw::getValue))
         .method("getVector", &MVuvw::getVector)
         .method("putVector", &MVuvw::putVector);
@@ -589,4 +590,18 @@ JLCXX_MODULE define_julia_module(jlcxx::Module &mod) {
     addmeasure<MPosition, MVPosition>(mod, "MPosition");
     addmeasure<MRadialVelocity, MVRadialVelocity>(mod, "MRadialVelocity");
     addmeasure<Muvw, MVuvw>(mod, "Muvw");
+
+    // Measure-specific methods
+    mod.method("toDoppler", [](const MFrequency & freq, const MVFrequency & rest) {
+        return freq.toDoppler(rest);
+    });
+    mod.method("fromDoppler", [](const MDoppler & dop, const MVFrequency & rest, MFrequency::Types type) {
+        return MFrequency::fromDoppler(dop, rest, type);
+    });
+    mod.method("toDoppler", [](MRadialVelocity & rv) {
+        return rv.toDoppler();
+    });
+    mod.method("fromDoppler", [](const MDoppler & dop, MRadialVelocity::Types type) {
+        return MRadialVelocity::fromDoppler(dop, type);
+    });
 }
