@@ -2,11 +2,10 @@ name: CI
 on:
   pull_request:
     branches:
-      - master
+      - main
   push:
     branches:
-      - master
-      - buildtest
+      - main
     tags: '*'
 jobs:
   test:
