@@ -1,14 +1,5 @@
 using Casacore.Tables
 using Casacore.Measures
-using Casacore.Measures.Baselines
-using Casacore.Measures.Directions
-using Casacore.Measures.Dopplers
-using Casacore.Measures.EarthMagnetics
-using Casacore.Measures.Epochs
-using Casacore.Measures.Frequencies
-using Casacore.Measures.Positions
-using Casacore.Measures.RadialVelocities
-using Casacore.Measures.UVWs
 using Test
 
 using Unitful
@@ -16,7 +7,7 @@ using Unitful
 @testset "Casacore.jl" begin
     @testset "Measures" begin
         @testset "Direction conversion J2000 to AZEL (and back again)" begin
-            direction = Directions.Direction(Directions.J2000, (π)u"rad", π/2u"rad")
+            direction = Measures.Direction(Measures.Directions.J2000, (π)u"rad", π/2u"rad")
             show(devnull, direction)
 
             # Getters/setters
@@ -26,8 +17,8 @@ using Unitful
             @test direction.lat ≈ 0u"rad"
 
             # Create reference frame measures
-            pos = Positions.Position(Positions.ITRF, 1000u"m", 0u"m", 0u"m")
-            t = Epochs.Epoch(Epochs.UTC, 1234567u"d")
+            pos = Measures.Position(Measures.Positions.ITRF, 1000u"m", 0u"m", 0u"m")
+            t = Measures.Epoch(Measures.Epochs.UTC, 1234567u"d")
 
             show(devnull, t)
             show(devnull, pos)
@@ -43,46 +34,46 @@ using Unitful
             @test (t.time += 1u"d") == 1234568u"d"
             @test t.time == 1234568u"d"
 
-            convert = Measures.Converter(Directions.J2000, Directions.AZEL, t, pos)
-            Measures.mconvert!(direction, direction, convert)
+            convert = Measures.Converter(Measures.Directions.J2000, Measures.Directions.AZEL, t, pos)
+            mconvert!(direction, direction, convert)
 
             @test !isapprox(direction.lat , 0u"rad", atol=1e-4)  # Check that the conversion does something
 
-            convert = Measures.Converter(Directions.AZEL, Directions.J2000, t, pos)
-            Measures.mconvert!(direction, direction, convert)
+            convert = Measures.Converter(Measures.Directions.AZEL, Measures.Directions.J2000, t, pos)
+            mconvert!(direction, direction, convert)
 
             @test isapprox(direction.lat, 0u"rad", atol=1e-4)
             @test isapprox(direction.long, 3π/4u"rad", atol=1e-4)
         end
 
         @testset "Frequency conversion REST to LSRD" begin
-            freq = Frequencies.Frequency(Frequencies.REST, 1_420_405_752u"Hz")
+            freq = Measures.Frequency(Measures.Frequencies.REST, 1_420_405_752u"Hz")
             show(devnull, freq)
 
             @test (freq.freq +=1u"Hz") == 1_420_405_753u"Hz"
             @test freq.freq == 1_420_405_753u"Hz"
 
-            direction = Directions.Direction(Directions.J2000, 0u"rad", π/2u"rad")
-            velocity = RadialVelocities.RadialVelocity(RadialVelocities.LSRD, 20_000u"km/s", direction)
+            direction = Measures.Direction(Measures.Directions.J2000, 0u"rad", π/2u"rad")
+            velocity = Measures.RadialVelocity(Measures.RadialVelocities.LSRD, 20_000u"km/s", direction)
             show(devnull, velocity)
 
             @test (velocity.velocity += 1u"m/s") == 20_000_001u"m/s"
             @test velocity.velocity == 20_000_001u"m/s"
 
-            convert = Measures.Converter(Frequencies.REST, Frequencies.LSRD, velocity, direction)
-            Measures.mconvert!(freq, freq, convert)
+            convert = Measures.Converter(Measures.Frequencies.REST, Measures.Frequencies.LSRD, velocity, direction)
+            mconvert!(freq, freq, convert)
             @test freq.freq != 1_420_405_753u"Hz"  # Check that the conversion does something
 
-            convert = Measures.Converter(Frequencies.LSRD, Frequencies.REST, velocity, direction)
-            Measures.mconvert!(freq, freq, convert)
+            convert = Measures.Converter(Measures.Frequencies.LSRD, Measures.Frequencies.REST, velocity, direction)
+            mconvert!(freq, freq, convert)
             @test freq.freq ≈ 1_420_405_753u"Hz"
         end
 
         @testset "EarthMagnetic conversion ITRF to AZEL" begin
-            pos = Positions.Position(Positions.ITRF, 6378.1u"km", 0u"km", 0u"km")
-            time = Epochs.Epoch(Epochs.DEFAULT, 59857u"d")
+            pos = Measures.Position(Measures.Positions.ITRF, 6378.1u"km", 0u"km", 0u"km")
+            time = Measures.Epoch(Measures.Epochs.DEFAULT, 59857u"d")
 
-            bfield = EarthMagnetics.EarthMagnetic(EarthMagnetics.DEFAULT, -1u"T", -1u"T", -1u"T")
+            bfield = Measures.EarthMagnetic(Measures.EarthMagnetics.DEFAULT, -1u"T", -1u"T", -1u"T")
 
             @test (bfield.x += 1u"T") == 0u"T"
             @test bfield.x == 0u"T"
@@ -91,18 +82,18 @@ using Unitful
             @test (bfield.z += 5u"T") == 4u"T"
             @test bfield.z == 4u"T"
 
-            convert = Measures.Converter(EarthMagnetics.DEFAULT, EarthMagnetics.AZEL, pos, time)
+            convert = Measures.Converter(Measures.EarthMagnetics.DEFAULT, Measures.EarthMagnetics.AZEL, pos, time)
 
-            Measures.mconvert!(bfield, bfield, convert)
+            mconvert!(bfield, bfield, convert)
             @test 10_000u"nT" < hypot(bfield.x, bfield.y, bfield.z) < 100_000u"nT"  # A reasonable range
         end
 
         @testset "Baseline conversion from ITRF to J2000 to UVW" begin
-            refpos = Positions.Position(Positions.ITRF, 6378.1u"km", 0u"km", 0u"km")
-            time = Epochs.Epoch(Epochs.DEFAULT, 59857u"d")
-            refdirection = Directions.Direction(Directions.J2000, 27u"°", 25u"°")
+            refpos = Measures.Position(Measures.Positions.ITRF, 6378.1u"km", 0u"km", 0u"km")
+            time = Measures.Epoch(Measures.Epochs.DEFAULT, 59857u"d")
+            refdirection = Measures.Direction(Measures.Directions.J2000, 27u"°", 25u"°")
 
-            baseline = Baselines.Baseline(Baselines.ITRF, 1u"km", 1u"km", 1u"km")
+            baseline = Measures.Baseline(Measures.Baselines.ITRF, 1u"km", 1u"km", 1u"km")
 
             @test (baseline.x += 2u"km") == 3u"km"
             @test baseline.x == 3u"km"
@@ -114,17 +105,17 @@ using Unitful
             length = hypot(baseline.x, baseline.y, baseline.z)
 
             # Why is refdirection needed for Baseline conversion? It has no effect.
-            convert = Measures.Converter(Baselines.ITRF, Baselines.J2000, refdirection, refpos, time)
-            Measures.mconvert!(baseline, baseline, convert)
+            convert = Measures.Converter(Measures.Baselines.ITRF, Measures.Baselines.J2000, refdirection, refpos, time)
+            mconvert!(baseline, baseline, convert)
             @test hypot(baseline.x, baseline.y, baseline.z) ≈ length
         end
 
         @testset "Doppler conversions" begin
-            doppler = Dopplers.Doppler(Dopplers.RADIO, 20_000u"km/s")
-            doppler = Dopplers.Doppler(Dopplers.Z, 0.023)
+            doppler = Measures.Doppler(Measures.Dopplers.RADIO, 20_000u"km/s")
+            doppler = Measures.Doppler(Measures.Dopplers.Z, 0.023)
 
-            convert = Measures.Converter(Dopplers.Z, Dopplers.RADIO)
-            Measures.mconvert!(doppler, doppler, convert)
+            convert = Measures.Converter(Measures.Dopplers.Z, Measures.Dopplers.RADIO)
+            mconvert!(doppler, doppler, convert)
             @test doppler.doppler == 1 - 1/(0.023 + 1)
 
             @test (doppler.doppler = 2) == 2

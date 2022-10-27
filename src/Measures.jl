@@ -41,6 +41,19 @@ include("Measures/Positions.jl")
 include("Measures/RadialVelocities.jl")
 include("Measures/UVWs.jl")
 
+# Import primary types into Measures
+using .Baselines: Baseline
+using .Dopplers: Doppler
+using .Directions: Direction
+using .EarthMagnetics: EarthMagnetic
+using .Epochs: Epoch
+using .Frequencies: Frequency
+using .Positions: Position
+using .RadialVelocities: RadialVelocity
+using .UVWs: UVW
+
+export mconvert!
+
 end
 
 
