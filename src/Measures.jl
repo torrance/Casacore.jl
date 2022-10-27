@@ -44,16 +44,17 @@ end
 
 using Casacore.Measures: Directions, Positions, Epochs, Converter, mconvert!
 using BenchmarkTools
+using Unitful
 
-direction = Directions.Direction(Directions.J2000, π, π/2)
+direction = Directions.Direction(Directions.J2000, (π)u"rad", (π/2)u"rad")
 pos = Positions.Position(Positions.ITRF, 1000, 0, 0)
-t = Epochs.Epoch(Epochs.UTC, 1234567)
+t = Epochs.Epoch(Epochs.UTC, 1234567u"d")
 convert = Converter(Directions.J2000, Directions.AZEL, t, pos)
 
 vals = eachcol(rand(2, 128*128))
 @benchmark foreach(vals) do longlat
-    direction.long = longlat[1]
-    direction.lat = longlat[2]
+    direction.long = longlat[1] * Unitful.rad
+    direction.lat = longlat[2] * Unitful.rad
     direction.type = Directions.J2000
     mconvert!(direction, direction, convert)
 end

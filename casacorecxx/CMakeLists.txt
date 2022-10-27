@@ -17,7 +17,6 @@ find_package(Casacore REQUIRED)
 # Add our library
 add_library(casacorecxx SHARED
   src/casacorecxx.cpp
-  src/enums.cpp
 )
 
 # Link to JLCxx and of course casa

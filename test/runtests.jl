@@ -12,67 +12,66 @@ using Unitful
 @testset "Casacore.jl" begin
     @testset "Measures" begin
         @testset "Direction conversion J2000 to AZEL (and back again)" begin
-            direction = Directions.Direction(Directions.J2000, π, π/2)
+            direction = Directions.Direction(Directions.J2000, (π)u"rad", π/2u"rad")
             show(devnull, direction)
 
             # Getters/setters
-            @test (direction.long -= π/4) ≈ 3π/4
-            @test direction.long ≈ 3π/4
-            @test (direction.lat -= π/2) ≈ 0
-            @test direction.lat ≈ 0
-            direction.lat = 0
+            @test (direction.long -= π/4u"rad") ≈ 3π/4u"rad"
+            @test direction.long ≈ 3π/4u"rad"
+            @test (direction.lat -= π/2u"rad") ≈ 0u"rad"
+            @test direction.lat ≈ 0u"rad"
 
             # Create reference frame measures
-            pos = Positions.Position(Positions.ITRF, 1000, 0, 0)
-            t = Epochs.Epoch(Epochs.UTC, 1234567)
+            pos = Positions.Position(Positions.ITRF, 1000u"m", 0u"m", 0u"m")
+            t = Epochs.Epoch(Epochs.UTC, 1234567u"d")
 
             show(devnull, t)
             show(devnull, pos)
 
             # Getters/setters
-            @test (pos.x += 1) == 1001
-            @test pos.x == 1001
-            @test (pos.y += 3) == 3
-            @test pos.y == 3
-            @test (pos.z += 5) == 5
-            @test pos.z == 5
+            @test (pos.x += 1u"km") == 2000u"m"
+            @test pos.x == 2u"km"
+            @test (pos.y += 3u"m") == 3u"m"
+            @test pos.y == 3u"m"
+            @test (pos.z += 5u"m") == 5u"m"
+            @test pos.z == 5u"m"
 
-            @test (t.time += 1) == 1234568
-            @test t.time == 1234568
+            @test (t.time += 1u"d") == 1234568u"d"
+            @test t.time == 1234568u"d"
 
             convert = Measures.Converter(Directions.J2000, Directions.AZEL, t, pos)
             Measures.mconvert!(direction, direction, convert)
 
-            @test !isapprox(direction.lat , 0, atol=1e-4)  # Check that the conversion does something
+            @test !isapprox(direction.lat , 0u"rad", atol=1e-4)  # Check that the conversion does something
 
             convert = Measures.Converter(Directions.AZEL, Directions.J2000, t, pos)
             Measures.mconvert!(direction, direction, convert)
 
-            @test isapprox(direction.lat, 0, atol=1e-4)
-            @test isapprox(direction.long, 3π/4, atol=1e-4)
+            @test isapprox(direction.lat, 0u"rad", atol=1e-4)
+            @test isapprox(direction.long, 3π/4u"rad", atol=1e-4)
         end
 
         @testset "Frequency conversion REST to LSRD" begin
-            freq = Frequencies.Frequency(Frequencies.REST, 1_420_405_752)
+            freq = Frequencies.Frequency(Frequencies.REST, 1_420_405_752u"Hz")
             show(devnull, freq)
 
-            @test (freq.freq +=1) == 1_420_405_753
-            @test freq.freq == 1_420_405_753
+            @test (freq.freq +=1u"Hz") == 1_420_405_753u"Hz"
+            @test freq.freq == 1_420_405_753u"Hz"
 
-            direction = Directions.Direction(Directions.J2000, 0, π/2)
-            velocity = RadialVelocities.RadialVelocity(RadialVelocities.LSRD, 20_000_000, direction)
+            direction = Directions.Direction(Directions.J2000, 0u"rad", π/2u"rad")
+            velocity = RadialVelocities.RadialVelocity(RadialVelocities.LSRD, 20_000u"km/s", direction)
             show(devnull, velocity)
 
-            @test (velocity.velocity += 1) == 20_000_001
-            @test velocity.velocity == 20_000_001
+            @test (velocity.velocity += 1u"m/s") == 20_000_001u"m/s"
+            @test velocity.velocity == 20_000_001u"m/s"
 
             convert = Measures.Converter(Frequencies.REST, Frequencies.LSRD, velocity, direction)
             Measures.mconvert!(freq, freq, convert)
-            @test freq.freq != 1_420_405_753  # Check that the conversion does something
+            @test freq.freq != 1_420_405_753u"Hz"  # Check that the conversion does something
 
             convert = Measures.Converter(Frequencies.LSRD, Frequencies.REST, velocity, direction)
             Measures.mconvert!(freq, freq, convert)
-            @test freq.freq ≈ 1_420_405_753
+            @test freq.freq ≈ 1_420_405_753u"Hz"
         end
     end
 
