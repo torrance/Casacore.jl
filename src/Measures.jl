@@ -19,8 +19,6 @@ end
 function mconvert!(out::AbstractMeasure, in::AbstractMeasure, c::Converter)
     @assert(c.in == in.type)
     LibCasacore.convert!(c.cxx_object, in.m, out.m)
-    # m = c.cxx_object(LibCasacore.getValue(in.m))
-    # LibCasacore.set(out.m, LibCasacore.getValue(m))
     out.type = c.out
 end
 
@@ -55,25 +53,3 @@ using .UVWs: UVW
 export mconvert!
 
 end
-
-
-#=
-
-using Casacore.Measures: Directions, Positions, Epochs, Converter, mconvert!
-using BenchmarkTools
-using Unitful
-
-direction = Directions.Direction(Directions.J2000, (π)u"rad", (π/2)u"rad")
-pos = Positions.Position(Positions.ITRF, 1000, 0, 0)
-t = Epochs.Epoch(Epochs.UTC, 1234567u"d")
-convert = Converter(Directions.J2000, Directions.AZEL, t, pos)
-
-vals = eachcol(rand(2, 128*128))
-@benchmark foreach(vals) do longlat
-    direction.long = longlat[1] * Unitful.rad
-    direction.lat = longlat[2] * Unitful.rad
-    direction.type = Directions.J2000
-    mconvert!(direction, direction, convert)
-end
-
-=#
