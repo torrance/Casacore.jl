@@ -95,4 +95,14 @@ function Converter(in::Types, out::Types, measures::AbstractMeasure...)
     )
 end
 
+function Converter(in::Epoch, out::Types, measures::AbstractMeasure...)
+    ref = LibCasacore.MEpoch!Ref(
+        Int(out), LibCasacore.MeasFrame((m.m for m in measures)...)
+    )
+
+    return Converter(
+        in.type, out, LibCasacore.MEpoch!Convert(in.m, ref)
+    )
+end
+
 end

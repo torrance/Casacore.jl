@@ -130,4 +130,14 @@ function Converter(in::Types, out::Types, measures::AbstractMeasure...)
     )
 end
 
+function Converter(in::Direction, out::Types, measures::AbstractMeasure...)
+    ref = LibCasacore.MDirection!Ref(
+        Int(out), LibCasacore.MeasFrame((m.m for m in measures)...)
+    )
+
+    return Converter(
+        in.type, out, LibCasacore.MDirection!Convert(in.m, ref)
+    )
+end
+
 end

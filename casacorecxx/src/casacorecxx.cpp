@@ -82,7 +82,8 @@ void addmeasure(jlcxx::Module & mod, std::string mname) {
         .method("setModel", &T::Convert::setModel)
         .method("setOut", static_cast<void (T::Convert::*)(const typename T::Ref &)>(&T::Convert::setOut))
         .method("convert!", [](typename T::Convert & c, T & min, T & mout) {
-            mout.set(c(min.getValue()).getValue());
+            const T & tmp = c(min.getValue());
+            mout.set(tmp.getValue(), tmp.getRef());
         });
 
     // Add T::Ref::set() here as we need T to have been defined

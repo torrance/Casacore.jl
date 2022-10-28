@@ -115,4 +115,14 @@ function Converter(in::Types, out::Types, measures::AbstractMeasure...)
     )
 end
 
+function Converter(in::EarthMagnetic, out::Types, measures::AbstractMeasure...)
+    ref = LibCasacore.MEarthMagnetic!Ref(
+        Int(out), LibCasacore.MeasFrame((m.m for m in measures)...)
+    )
+
+    return Converter(
+        in.type, out, LibCasacore.MEarthMagnetic!Convert(in.m, ref)
+    )
+end
+
 end

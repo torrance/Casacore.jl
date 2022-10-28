@@ -124,4 +124,14 @@ function Converter(in::Types, out::Types, measures::AbstractMeasure...)
     )
 end
 
+function Converter(in::UVW, out::Types, measures::AbstractMeasure...)
+    ref = LibCasacore.Muvw!Ref(
+        Int(out), LibCasacore.MeasFrame((m.m for m in measures)...)
+    )
+
+    return Converter(
+        in.type, out, LibCasacore.Muvw!Convert(in.m, ref)
+    )
+end
+
 end

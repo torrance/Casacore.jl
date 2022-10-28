@@ -86,4 +86,14 @@ function Converter(in::Types, out::Types, measures::AbstractMeasure...)
     )
 end
 
+function Converter(in::Doppler, out::Types, measures::AbstractMeasure...)
+    ref = LibCasacore.MDoppler!Ref(
+        Int(out), LibCasacore.MeasFrame((m.m for m in measures)...)
+    )
+
+    return Converter(
+        in.type, out, LibCasacore.MDoppler!Convert(in.m, ref)
+    )
+end
+
 end

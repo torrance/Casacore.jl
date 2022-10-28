@@ -87,4 +87,14 @@ function Converter(in::Types, out::Types, measures::AbstractMeasure...)
     )
 end
 
+function Converter(in::Position, out::Types, measures::AbstractMeasure...)
+    ref = LibCasacore.MPosition!Ref(
+        Int(out), LibCasacore.MeasFrame((m.m for m in measures)...)
+    )
+
+    return Converter(
+        in.type, out, LibCasacore.MPosition!Convert(in.m, ref)
+    )
+end
+
 end

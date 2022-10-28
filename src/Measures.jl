@@ -4,6 +4,10 @@ using ..LibCasacore
 
 abstract type AbstractMeasure end
 
+function Base.zero(::T) where {T <: AbstractMeasure}
+    return zero(T)
+end
+
 function Base.show(io::IO, x::AbstractMeasure)
     write(io, "$(typeof(x))(")
     join(io, (":$(p)=$(getproperty(x, p))" for p in propertynames(x)), ", ")
@@ -17,20 +21,19 @@ struct Converter{T, S}
 end
 
 function mconvert(in::AbstractMeasure, out, measures::AbstractMeasure...)
-    c = Converter(in.type, out, measures...)
+    c = Converter(in, out, measures...)
     return mconvert(in, c)
 end
 
 function mconvert(in::T, c::Converter) where {T <: AbstractMeasure}
-    out = zero(T)
-    mconvert!(out, in, c)
-    return out
+    return mconvert!(zero(T), in, c)
 end
 
-function mconvert!(out::AbstractMeasure, in::AbstractMeasure, c::Converter)
+function mconvert!(out::T, in::T, c::Converter) where {T <: AbstractMeasure}
     @assert(c.in == in.type)
     LibCasacore.convert!(c.cxx_object, in.m, out.m)
     out.type = c.out
+    return out
 end
 
 function _setdata!(x::AbstractMeasure, data::AbstractVector{Float64})

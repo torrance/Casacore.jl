@@ -78,4 +78,14 @@ function Converter(in::Types, out::Types, measures::AbstractMeasure...)
     )
 end
 
+function Converter(in::RadialVelocity, out::Types, measures::AbstractMeasure...)
+    ref = LibCasacore.MRadialVelocity!Ref(
+        Int(out), LibCasacore.MeasFrame((m.m for m in measures)...)
+    )
+
+    return Converter(
+        in.type, out, LibCasacore.MRadialVelocity!Convert(in.m, ref)
+    )
+end
+
 end
