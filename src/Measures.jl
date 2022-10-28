@@ -40,13 +40,15 @@ struct Converter{T, S}
     cxx_object::T
 end
 
-function mconvert(in::AbstractMeasure, out, measures::AbstractMeasure...)
-    c = Converter(in, out, measures...)
-    return mconvert(in, c)
+function mconvert(outtype, in::AbstractMeasure, measures::AbstractMeasure...)
+    out = zero(in)
+    out.type = outtype
+    return mconvert!(out, in, measures...)
 end
 
-function mconvert(in::T, c::Converter) where {T <: AbstractMeasure}
-    return mconvert!(zero(T), in, c)
+function mconvert!(out::T, in::T, measures::AbstractMeasure...) where {T <: AbstractMeasure}
+    c = Converter(in, out.type, measures...)
+    return mconvert!(out, in, c)
 end
 
 function mconvert!(out::T, in::T, c::Converter) where {T <: AbstractMeasure}
