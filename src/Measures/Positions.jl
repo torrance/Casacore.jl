@@ -37,6 +37,8 @@ function Position(type::Types, x::U.Length, y::U.Length, z::U.Length, measures::
     return Position(type, measure, value, zeros(3))
 end
 
+Base.zero(::Type{Position}) = Position(DEFAULT, 0 * U.m, 0 * U.m, 0 * U.m)
+
 function Base.propertynames(x::Position, private::Bool=false)
     return (:type, :x, :y, :z)
 end

@@ -34,14 +34,10 @@ using Unitful
             @test (t.time += 1u"d") == 1234568u"d"
             @test t.time == 1234568u"d"
 
-            convert = Measures.Converter(Measures.Directions.J2000, Measures.Directions.AZEL, t, pos)
-            mconvert!(direction, direction, convert)
-
+            direction = mconvert(direction, Measures.Directions.AZEL, t, pos)
             @test !isapprox(direction.lat , 0u"rad", atol=1e-4)  # Check that the conversion does something
 
-            convert = Measures.Converter(Measures.Directions.AZEL, Measures.Directions.J2000, t, pos)
-            mconvert!(direction, direction, convert)
-
+            direction = mconvert(direction, Measures.Directions.J2000, t, pos)
             @test isapprox(direction.lat, 0u"rad", atol=1e-4)
             @test isapprox(direction.long, 3π/4u"rad", atol=1e-4)
         end
@@ -60,12 +56,10 @@ using Unitful
             @test (velocity.velocity += 1u"m/s") == 20_000_001u"m/s"
             @test velocity.velocity == 20_000_001u"m/s"
 
-            convert = Measures.Converter(Measures.Frequencies.REST, Measures.Frequencies.LSRD, velocity, direction)
-            mconvert!(freq, freq, convert)
+            freq = mconvert(freq, Measures.Frequencies.LSRD, velocity, direction)
             @test freq.freq != 1_420_405_753u"Hz"  # Check that the conversion does something
 
-            convert = Measures.Converter(Measures.Frequencies.LSRD, Measures.Frequencies.REST, velocity, direction)
-            mconvert!(freq, freq, convert)
+            freq = mconvert(freq, Measures.Frequencies.REST, velocity, direction)
             @test freq.freq ≈ 1_420_405_753u"Hz"
         end
 
@@ -82,9 +76,7 @@ using Unitful
             @test (bfield.z += 5u"T") == 4u"T"
             @test bfield.z == 4u"T"
 
-            convert = Measures.Converter(Measures.EarthMagnetics.DEFAULT, Measures.EarthMagnetics.AZEL, pos, time)
-
-            mconvert!(bfield, bfield, convert)
+            bfield = mconvert(bfield, Measures.EarthMagnetics.AZEL, pos, time)
             @test 10_000u"nT" < hypot(bfield.x, bfield.y, bfield.z) < 100_000u"nT"  # A reasonable range
         end
 
@@ -105,8 +97,7 @@ using Unitful
             length = hypot(baseline.x, baseline.y, baseline.z)
 
             # Why is refdirection needed for Baseline conversion? It has no effect.
-            convert = Measures.Converter(Measures.Baselines.ITRF, Measures.Baselines.J2000, refdirection, refpos, time)
-            mconvert!(baseline, baseline, convert)
+            baseline = mconvert(baseline, Measures.Baselines.J2000, refdirection, refpos, time)
             @test hypot(baseline.x, baseline.y, baseline.z) ≈ length
         end
 
@@ -114,8 +105,7 @@ using Unitful
             doppler = Measures.Doppler(Measures.Dopplers.RADIO, 20_000u"km/s")
             doppler = Measures.Doppler(Measures.Dopplers.Z, 0.023)
 
-            convert = Measures.Converter(Measures.Dopplers.Z, Measures.Dopplers.RADIO)
-            mconvert!(doppler, doppler, convert)
+            doppler = mconvert(doppler, Measures.Dopplers.RADIO)
             @test doppler.doppler == 1 - 1/(0.023 + 1)
 
             @test (doppler.doppler = 2) == 2

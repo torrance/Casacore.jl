@@ -49,6 +49,8 @@ function Doppler(
     return Doppler(type, measure, value, zeros(1))
 end
 
+Base.zero(::Type{Doppler}) = Doppler(DEFAULT, 0)
+
 function Base.propertynames(x::Doppler, private::Bool=false)
     return (:type, :doppler)
 end

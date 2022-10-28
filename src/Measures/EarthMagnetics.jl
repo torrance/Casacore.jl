@@ -65,6 +65,8 @@ function EarthMagnetic(type::Types, x::U.BField, y::U.BField, z::U.BField, measu
     return EarthMagnetic(type, measure, value, zeros(3))
 end
 
+Base.zero(::Type{EarthMagnetic}) = EarthMagnetic(DEFAULT, 0 * U.T, 0 * U.T, 0 * U.T)
+
 function Base.propertynames(x::EarthMagnetic, private::Bool=false)
     return (:type, :x, :y, :z)
 end

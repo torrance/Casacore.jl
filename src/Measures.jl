@@ -16,6 +16,17 @@ struct Converter{T, S}
     cxx_object::T
 end
 
+function mconvert(in::AbstractMeasure, out, measures::AbstractMeasure...)
+    c = Converter(in.type, out, measures...)
+    return mconvert(in, c)
+end
+
+function mconvert(in::T, c::Converter) where {T <: AbstractMeasure}
+    out = zero(T)
+    mconvert!(out, in, c)
+    return out
+end
+
 function mconvert!(out::AbstractMeasure, in::AbstractMeasure, c::Converter)
     @assert(c.in == in.type)
     LibCasacore.convert!(c.cxx_object, in.m, out.m)
@@ -50,6 +61,6 @@ using .Positions: Position
 using .RadialVelocities: RadialVelocity
 using .UVWs: UVW
 
-export mconvert!
+export mconvert, mconvert!
 
 end

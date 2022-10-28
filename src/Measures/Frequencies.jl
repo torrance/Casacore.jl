@@ -49,6 +49,8 @@ function Frequency(type::Types, f::U.Frequency, measures::AbstractMeasure...; of
     return Frequency(type, measure, value, zeros(1))
 end
 
+Base.zero(::Type{Frequency}) = Frequency(DEFAULT, 0 * U.Hz)
+
 function Base.propertynames(x::Frequency, private::Bool=false)
     return (:type, :freq)
 end

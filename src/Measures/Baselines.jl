@@ -61,6 +61,8 @@ function Baseline(type::Types, x::U.Length, y::U.Length, z::U.Length, measures::
     return Baseline(type, measure, value, zeros(3))
 end
 
+Base.zero(::Type{Baseline}) = Baseline(DEFAULT, 0 * U.m, 0 * U.m, 0 * U.m)
+
 function Base.propertynames(x::Baseline, private::Bool=false)
     return (:type, :x, :y, :z)
 end

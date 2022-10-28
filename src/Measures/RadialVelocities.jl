@@ -44,6 +44,8 @@ function RadialVelocity(type::Types, v::U.Velocity, measures::AbstractMeasure...
     return RadialVelocity(type, measure, value, zeros(1))
 end
 
+Base.zero(::Type{RadialVelocity}) = RadialVelocity(DEFAULT, 0 * U.m / U.s)
+
 function Base.propertynames(x::RadialVelocity, private::Bool=false)
     return (:type, :velocity)
 end

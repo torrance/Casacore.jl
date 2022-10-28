@@ -80,6 +80,8 @@ function Direction(
     return Direction(type, measure, value, zeros(3))
 end
 
+Base.zero(::Type{Direction}) = Direction(DEFAULT, 0 * U.rad, 0 * U.rad)
+
 function Base.propertynames(x::Direction, private::Bool=false)
     return (:type, :long, :lat)
 end

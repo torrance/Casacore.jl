@@ -61,6 +61,8 @@ function Epoch(type::Types, t::U.Time, measures::AbstractMeasure...; offset::Uni
     return Epoch(type, measure, value, zeros(1))
 end
 
+Base.zero(::Type{Epoch}) = Epoch(DEFAULT, 0 * U.s)
+
 function Base.propertynames(x::Epoch, private::Bool=false)
     return (:type, :time)
 end

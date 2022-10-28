@@ -63,6 +63,8 @@ function UVW(type::Types, u::U.Length, v::U.Length, w::U.Length, measures::Abstr
     return UVW(type, measure, value, zeros(3))
 end
 
+Base.zero(::Type{UVW}) = UVW(DEFAULT, 0 * U.m, 0 * U.m, 0 * U.m)
+
 # REMOVED: This is an expensive method to do what is just a matrix multiplication
 # # Special constructor for uvw from a baseline and direction
 # # Baseline and direction must be in the same frame as their values are used directly
