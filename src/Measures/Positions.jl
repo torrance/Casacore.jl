@@ -26,7 +26,7 @@ function Position(type::Types, x::U.Length, y::U.Length, z::U.Length, measures::
         Int(type), LibCasacore.MeasFrame((m.m for m in measures)...)
     )
     if offset !== nothing
-        LibCasacore.set(ref, offset.cxx_wrap)
+        LibCasacore.set(ref, offset.m)
     end
 
     value = LibCasacore.MVPosition(

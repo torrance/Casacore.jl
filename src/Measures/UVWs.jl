@@ -50,7 +50,7 @@ function UVW(type::Types, u::U.Length, v::U.Length, w::U.Length, measures::Abstr
         Int(type), LibCasacore.MeasFrame((m.m for m in measures)...)
     )
     if offset !== nothing
-        LibCasacore.set(ref, offset.cxx_wrap)
+        LibCasacore.set(ref, offset.m)
     end
 
     value = LibCasacore.MVuvw(

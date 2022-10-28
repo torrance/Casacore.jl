@@ -35,7 +35,7 @@ function RadialVelocity(type::Types, v::U.Velocity, measures::AbstractMeasure...
         Int(type), LibCasacore.MeasFrame((m.m for m in measures)...)
     )
     if offset !== nothing
-        LibCasacore.set(ref, offset.cxx_wrap)
+        LibCasacore.set(ref, offset.m)
     end
 
     value = LibCasacore.MVRadialVelocity(ustrip(Float64, U.m / U.s, v))

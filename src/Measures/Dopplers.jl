@@ -34,7 +34,7 @@ function Doppler(
         Int(type), LibCasacore.MeasFrame((m.m for m in measures)...)
     )
     if offset !== nothing
-        LibCasacore.set(ref, offset.cxx_wrap)
+        LibCasacore.set(ref, offset.m)
     end
 
     # Doppler value may either be a fraction of c, or a velocity.

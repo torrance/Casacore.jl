@@ -52,7 +52,7 @@ function Epoch(type::Types, t::U.Time, measures::AbstractMeasure...; offset::Uni
         Int(type), LibCasacore.MeasFrame((m.m for m in measures)...)
     )
     if offset !== nothing
-        LibCasacore.set(ref, offset.cxx_wrap)
+        LibCasacore.set(ref, offset.m)
     end
 
     value = LibCasacore.MVEpoch(ustrip(Float64, U.d, t))

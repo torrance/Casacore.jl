@@ -8,7 +8,7 @@ This package provides a high-level interface to use Casacore from Julia.
 
 This package uses [casacorecxx](https://github.com/torrance/casacorecxx) which uses [CxxWrap](https://github.com/JuliaInterop/CxxWrap.jl) to wrap the C++ Casacore codebase. These raw objects and methods are available in `Casacore.LibCasacore`.
 
-Casacore is a very large package, and this Julia interface has been developed with specific usecases in mind, limited by the author's own experience. Please open an issue to discuss extending this package in ways that are more suitable to your own usecase.
+This package is under active development. Casacore is a very large package, and this Julia interface has been developed with specific usecases in mind, limited by the author's own experience. Issues and pull requests are very welcome to help expand on functionality and use cases.
 
 ## Installation
 
@@ -295,34 +295,170 @@ Command accepts a standard Julia `String`, however note that in this case we've 
 
 Measures allow constructing objects that contain a value with respect to a particular reference frame. Examples include: an Altitude/Azimuth frame with respect to a particular location and time on Earth; a Right Ascension/Declination on the sky with respect to the J2000 system; or a time in UTC timezone.
 
-In Casacore, Measures are primarily implemented to allow conversions between frames and in Julia this is the primary usecase for which we have designed their use.
+In Casacore, Measures are primarily implemented to allow conversions between types, and in Casacore.jl this is the primary usecase for which we have designed their use.
+
+### Examples
+
+An example converting a Direction from J2000 to local Aziumth/Elevation:
 
 ```julia
 using Casacore.Measures
 using Unitful  # provides @str_u macro for units, e.g. 1u"m"
 
 # We want to convert this RA/Dec direction to Azimuth/Elevation
-direction = Measures.Direction(Measures.DirectionTypes.J2000, 0u"rad", 0u"rad")
+direction = Measures.Direction(
+    Measures.Directions.J2000, 0u"rad", 0u"rad"
+)
 
 # A local Az/El requires knowledge of our position on Earth and the time
-pos = Measures.Position(Measures.PositionTypes.ITRF, 1u"km", 0u"rad", 0u"rad")
-time = Measures.Epoch(Measures.EpochTypes.UTC, 1234567u"d")
+pos = Measures.Position(
+    Measures.Positions.ITRF, 5000u"km", 1000u"km", 100u"km"
+)
+time = Measures.Epoch(Measures.Epochs.UTC, 1234567u"d")
 
 # Perform conversion by passing in desired type, as well as
-# any additional measures required for the conversion
-# newdirection = mconvert(olddirection, newtype, [measures...])
-direction = Measures.mconvert(direction, Measures.DirectionTypes.AZEL, pos, time)
+# any additional measures as a reference frame required for the conversion
+# newdirection = mconvert(newtype, olddirection, [measures...])
+direction = mconvert(
+    Measures.Directions.AZEL, direction, pos, time
+)
 
-long(direction), lat(direction)  # -1.2469808464138252 rad, 0.48889373998953756 rad
+direction.long, direction.lat  # -1.2469808464138252 rad, 0.48889373998953756 rad
+```
+
+An example converting a frequency from its REST frame to observed frequency based on additional information about its radial velocity:
+
+```julia
+# Create radial velocity measure with a direction
+direction = Measures.Direction(Measures.Directions.J2000, 45u"°", 20u"°")
+# Provide additional frame information for a measure as additional measures
+# during construction.
+# e.g. RadialVelocity(::Type, ::Unitful.Velocity, ::AbstractMeasure...)
+rv = Measures.RadialVelocity(
+    Measures.RadialVelocities.LSRD, 20_000u"km/s", direction
+)
+
+freq = Measures.Frequency(
+    Measures.Frequencies.REST, 1420u"MHz", direction
+)
+
+# Now calculate the redshifted frequency
+freqshifted = mconvert(Measures.Frequencies.LSRD, freq, rv)
+freqshifted.freq  # 1328 MHz
+```
+
+### Measure Construction
+
+In general, a Measure is constructed in the following way
+
+```julia
+Measure(::Type, initval..., ::AbstractMeasures...; offset)
+```
+
+Here the `initval` differs between specific Measures. For example, for `Direction` it consists two angle values; for `Epoch` it is a single time value. See below for full list.
+
+The optional list of `AbstractMeasures` will be added as a reference frame for the Measure, and the optional `offset` can be entered as an origin point for the Measure. These concepts map directly to the underlying Casacore library.
+
+The supported Measures and their properties are:
+
+| Measure        | Properties   | Quantity            |
+| -------------- | ------------ | ------------------- |
+| Baseline       | `:x :y :z`   | `Unitful.Length`    |
+| Direction      | `:long :lat` | `Unitful.Angle`     |
+| Doppler        | `:doppler`   | `Union{Float64, Unitful.Velocity}` |
+| EarthMagnetic  | `:x :y :z`   | `Unitful.Bfield`    |
+| Epoch          | `:time`      | `Unitful.Time`      |
+| Frequency      | `:freq`      | `Unitful.Frequency` |
+| Position       | `:x :y :z`   | `Unitful.Length`    |
+| RadialVelocity | `velocity`   | `Unitful.Velocity`  |
+| UVW            | `:u :v :w`   | `Unitful.Length`    |
+
+As an example, we might construct an EarthMagnetic vector in the following way:
+
+```julia
+# Pass in each of x, y, z vector components in milli Tesla
+em = Measures.EarthMagnetic(
+    Measures.EarthMagnetics.AZEL, 1u"mT", 2u"mT", 3u"mT"
+)
+
+em.y == 0.002u"T"
+```
+
+A more complicated example might be to provide a direction with respect to Jupiter at a particular time:
+
+```julia
+# Set up frame
+time = Measures.Epoch(Measures.Epochs.UTC, 60_000u"d")
+
+# Create Jupiter direction with addtional Epoch
+jupiter = mconvert(
+    Measures.Directions.J2000,
+    Measures.Direction(Measures.Directions.JUPITER, 0u"°", 0u"°", time)
+)
+
+# Create direction offset from Jupiter
+direction = Measures.Direction(
+    Measures.Directions.J2000, 5u"°", 10u"°"; offset=jupiter
+)
+```
+
+### Conversions
+
+Conversions between types can be handled by the `mconvert()` function:
+
+```julia
+# Direction conversions
+mconvert(
+    type::Directions.Types, dir::Direction, measures::AbstractMeasures...
+)
+```
+
+This will convert `dir` to the type `type`, with optional measures provided as part of the reference frame that might be necessary for the conversion.
+
+For large numbers of conversions of the same type, using the same reference frame, it is recommended to reuse Measure and Conversion objects for maximal performance, as the construction of these objects has some overhead. This can be done using `mconvert!() which has the signature:
+
+```julia
+mconvert!(in::T, out::T, c:Converter) where {T <: AbstractMeasure}
+```
+
+ For example:
+
+```julia
+
+# Set up 100,000 random RA/Dec coordinates to transform to AZEL
+radecs = rand(2, 100_000) * Unitful.rad
+
+# Reference frame
+time = Measures.Epoch(Measures.Epochs.UTC, 60000u"d")
+pos = Measures.Position(
+    Measures.Positions.ITRF, 6000u"km", 0u"km", 0u"km"
+)
+
+# Create conversion engine just once and reuse
+# Converter(in::type, out::type, measures::AbstractMeasures...)
+c = Measures.Converter(
+    Measures.Directions.J2000, Measures.Directions.AZEL, time, pos
+)
+
+# Create template direction which we will mutate for each conversion
+dir = zero(Measures.Direction)
+
+azels = map(eachcol(radecs)) do (ra, dec)
+    dir.type = Measures.Directions.J2000
+    dir.long = ra
+    dir.lat = dec
+    mconvert!(dir, dir, c)
+    return dir.long, dir.lat
+end
 ```
 
 ## Casacore.LibCasacore
 
-All objects and methods that are exposed by CxxWrap are available in LibCasacore.
+All objects and methods that are exposed by CxxWrap are available in LibCasacore. This is not a stable API and may be subject to change.
 
 ## Still to do
 
 * Utility function: create empty measurement set
 * Table keywords (?)
-* Additional measures
+* Doppler/frequency/radial velocity conversions
 * Observatories
