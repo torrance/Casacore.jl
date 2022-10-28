@@ -35,15 +35,12 @@ using Unitful
             @test (t.time += 1u"d") == 1234568u"d"
             @test t.time == 1234568u"d"
 
-            direction = mconvert(direction, Measures.Directions.AZEL, t, pos)
-            @test direction.type == Measures.Directions.AZEL
-            @test !isapprox(direction.lat , 0u"rad", atol=1e-4)  # Check that the conversion does something
-            @test !isapprox(direction.long, 3π/4u"rad", atol=1e-4)
+            directionAZEL = mconvert(direction, Measures.Directions.AZEL, t, pos)
+            @test directionAZEL.type == Measures.Directions.AZEL
+            @test !isapprox(directionAZEL.lat , 0u"rad", atol=1e-4)  # Check that the conversion does something
+            @test !isapprox(directionAZEL.long, 3π/4u"rad", atol=1e-4)
 
-            direction = mconvert(direction, Measures.Directions.J2000, t, pos)
-            @test direction.type == Measures.Directions.J2000
-            @test isapprox(direction.lat, 0u"rad", atol=1e-4)
-            @test isapprox(direction.long, 3π/4u"rad", atol=1e-4)
+            @test isapprox(direction, mconvert(directionAZEL, Measures.Directions.J2000, t, pos), atol=1e-6)
 
             direction.type = Measures.Directions.B1950
             @test direction.type == Measures.Directions.B1950
@@ -64,11 +61,10 @@ using Unitful
             @test (velocity.velocity += 1u"m/s") == 20_000_001u"m/s"
             @test velocity.velocity == 20_000_001u"m/s"
 
-            freq = mconvert(freq, Measures.Frequencies.LSRD, velocity, direction)
-            @test freq.freq != 1_420_405_753u"Hz"  # Check that the conversion does something
+            freqLSRD = mconvert(freq, Measures.Frequencies.LSRD, velocity, direction)
+            @test freqLSRD.freq != 1_420_405_753u"Hz"  # Check that the conversion does something
 
-            freq = mconvert(freq, Measures.Frequencies.REST, velocity, direction)
-            @test freq.freq ≈ 1_420_405_753u"Hz"
+            @test freq ≈ mconvert(freqLSRD, Measures.Frequencies.REST, velocity, direction)
         end
 
         @testset "EarthMagnetic conversion ITRF to AZEL" begin
@@ -126,15 +122,13 @@ using Unitful
             @test LibCasacore.getType(LibCasacore.getRef(freq.m)) == Int(freq.type)
             doppleragain = Measures.Doppler(freq, 1420u"MHz")
             @test LibCasacore.getType(LibCasacore.getRef(doppleragain.m)) == Int(doppleragain.type)
-            @test doppleragain.doppler ≈ doppler.doppler
-            @test doppleragain.type == doppler.type
+            @test doppler ≈ doppleragain
 
             # Doppler <-> RadialVelocity
             rv = Measures.RadialVelocity(Measures.RadialVelocities.LSRD, doppler)
             @test rv.type == Measures.RadialVelocities.LSRD
             doppleragain = Measures.Doppler(rv)
-            @test doppleragain.doppler ≈ doppler.doppler
-            @test doppleragain.type == doppler.type
+            @test doppler ≈ doppleragain
         end
     end
 

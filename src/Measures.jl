@@ -12,6 +12,22 @@ function Base.zero(::T) where {T <: AbstractMeasure}
     return zero(T)
 end
 
+function Base.:(==)(a::T, b::T) where {T <: AbstractMeasure}
+    return all(propertynames(a)) do p
+        getproperty(a, p) == getproperty(b, p)
+    end
+end
+
+function Base.isapprox(a::T, b::T; kwargs...) where {T <: AbstractMeasure}
+    return all(propertynames(a)) do p
+        if p === :type
+            getproperty(a, :type) == getproperty(b, :type)
+        else
+            isapprox(getproperty(a, p), getproperty(b, p); kwargs...)
+        end
+    end
+end
+
 function Base.show(io::IO, x::AbstractMeasure)
     write(io, "$(typeof(x))(")
     join(io, (":$(p)=$(getproperty(x, p))" for p in propertynames(x)), ", ")
