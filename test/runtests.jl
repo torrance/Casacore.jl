@@ -107,17 +107,34 @@ using Unitful
             # Why is refdirection needed for Baseline conversion? It has no effect.
             baseline = mconvert(baseline, Measures.Baselines.J2000, refdirection, refpos, time)
             @test hypot(baseline.x, baseline.y, baseline.z) ≈ length
+
+            uvw = Measures.UVW(Measures.UVWs.J2000, baseline, refdirection)
         end
 
         @testset "Doppler conversions" begin
             doppler = Measures.Doppler(Measures.Dopplers.RADIO, 20_000u"km/s")
-            doppler = Measures.Doppler(Measures.Dopplers.Z, 0.023)
-
-            doppler = mconvert(doppler, Measures.Dopplers.RADIO)
-            @test doppler.doppler == 1 - 1/(0.023 + 1)
-
             @test (doppler.doppler = 2) == 2
             @test doppler.doppler == 2
+
+            doppler = Measures.Doppler(Measures.Dopplers.Z, 0.023)
+            doppler = mconvert(doppler, Measures.Dopplers.RADIO)
+            @test doppler.doppler == 1 - 1/(0.023 + 1)
+            doppler = mconvert(doppler, Measures.Dopplers.BETA)
+
+            # Doppler <-> Frequency
+            freq = Measures.Frequency(Measures.Frequencies.LSRD, doppler, 1420u"MHz")
+            @test LibCasacore.getType(LibCasacore.getRef(freq.m)) == Int(freq.type)
+            doppleragain = Measures.Doppler(freq, 1420u"MHz")
+            @test LibCasacore.getType(LibCasacore.getRef(doppleragain.m)) == Int(doppleragain.type)
+            @test doppleragain.doppler ≈ doppler.doppler
+            @test doppleragain.type == doppler.type
+
+            # Doppler <-> RadialVelocity
+            rv = Measures.RadialVelocity(Measures.RadialVelocities.LSRD, doppler)
+            @test rv.type == Measures.RadialVelocities.LSRD
+            doppleragain = Measures.Doppler(rv)
+            @test doppleragain.doppler ≈ doppler.doppler
+            @test doppleragain.type == doppler.type
         end
     end
 

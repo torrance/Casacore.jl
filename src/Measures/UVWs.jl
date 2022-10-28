@@ -4,8 +4,6 @@ using CEnum
 using Unitful: Unitful as U, ustrip
 
 using ..Measures: AbstractMeasure, _setdata!, Converter
-using ..Measures.Baselines: Baseline
-using ..Measures.Directions: Direction
 using ..LibCasacore
 
 @cenum Types begin
@@ -64,17 +62,6 @@ function UVW(type::Types, u::U.Length, v::U.Length, w::U.Length, measures::Abstr
 end
 
 Base.zero(::Type{UVW}) = UVW(DEFAULT, 0 * U.m, 0 * U.m, 0 * U.m)
-
-# REMOVED: This is an expensive method to do what is just a matrix multiplication
-# # Special constructor for uvw from a baseline and direction
-# # Baseline and direction must be in the same frame as their values are used directly
-# function UVW(type::Types, baseline::Baseline, dir::Direction, EW::Bool=false)
-#     value = LibCasacore.MVuvw(
-#        LibCasacore.getValue(baseline.m), LibCasacore.getValue(dir.m), EW
-#     )
-#     measure = LibCasacore.Muvw(value)
-#     return UVW(type, measure, value, zeros(3))
-# end
 
 function Base.propertynames(x::UVW, private::Bool=false)
     return (:type, :u, :v, :w)

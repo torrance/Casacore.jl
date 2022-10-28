@@ -1,5 +1,9 @@
 module Measures
 
+export mconvert, mconvert!
+
+using Unitful: Unitful as U, ustrip
+
 using ..LibCasacore
 
 abstract type AbstractMeasure end
@@ -64,6 +68,58 @@ using .Positions: Position
 using .RadialVelocities: RadialVelocity
 using .UVWs: UVW
 
-export mconvert, mconvert!
+# Define some adhoc constructors for Measures that need to be defined late to avoid cyclic
+# type dependencies
+import .Dopplers
+import .Frequencies
+import .RadialVelocities
+
+function Dopplers.Doppler(rv::RadialVelocity)
+    return Doppler(
+        Dopplers.BETA,
+        LibCasacore.toDoppler(rv.m),
+        LibCasacore.MVDoppler(0),
+        zeros(1)
+    )
+end
+
+function Dopplers.Doppler(freq::Frequency, rest::U.Frequency)
+    return Doppler(
+        Dopplers.BETA,
+        LibCasacore.toDoppler(freq.m, LibCasacore.MVFrequency(ustrip(Float64, U.Hz, rest))),
+        LibCasacore.MVDoppler(0),
+        zeros(1),
+    )
+end
+
+function Frequencies.Frequency(type::Frequencies.Types, doppler::Doppler, rest::U.Frequency)
+    return Frequency(
+        type,
+        LibCasacore.fromDoppler(
+            doppler.m,
+            LibCasacore.MVFrequency(ustrip(Float64, U.Hz, rest)),
+            Int(type)
+        ),
+        LibCasacore.MVFrequency(0),
+        zeros(1)
+    )
+end
+
+function RadialVelocities.RadialVelocity(type::RadialVelocities.Types, doppler::Doppler)
+    return RadialVelocity(
+        type,
+        LibCasacore.fromDoppler(doppler.m, Int(type)),
+        LibCasacore.MVRadialVelocity(0),
+        zeros(1)
+    )
+end
+
+function UVWs.UVW(type::UVWs.Types, baseline::Baseline, dir::Direction, EW::Bool=false)
+    value = LibCasacore.MVuvw(
+       LibCasacore.getValue(baseline.m), LibCasacore.getValue(dir.m), EW
+    )
+    measure = LibCasacore.Muvw(value, Int(type))
+    return UVW(type, measure, value, zeros(3))
+end
 
 end
