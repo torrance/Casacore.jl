@@ -67,6 +67,9 @@ function Base.setproperty!(x::Frequency, name::Symbol, v)
     if name == :freq
         x.cache[] = ustrip(Float64, U.Hz, v)
         _setdata!(x, x.cache)
+    elseif name === :type
+        setfield!(x, :type, v)
+        LibCasacore.setType(x.m, Int(v))
     else
         setfield!(x, name, v)
     end

@@ -53,7 +53,8 @@ void addmeasure(jlcxx::Module & mod, std::string mname) {
     mod.template add_bits<typename T::Types>(mname + "!Types", jlcxx::julia_type("CppEnum"));
 
     mod.template add_type<typename T::Ref>(mname + "!Ref")
-        .template constructor<const typename T::Types, const MeasFrame &>();
+        .template constructor<const typename T::Types, const MeasFrame &>()
+        .method("getType", &T::Ref::getType);
 
     mod.template add_type<T>(mname, jlcxx::julia_base_type<Measure>())
         .template constructor<const T &>()  // copy()
@@ -66,6 +67,10 @@ void addmeasure(jlcxx::Module & mod, std::string mname) {
         .method("getRefString", &T::getRefString)
         .method("tellMe", &T::tellMe)
         .method("set", static_cast<void (T::*)(const TV &)>(&T::set))
+        .method("setType", [](T & m, typename T::Types type) {
+            // Convenience method to avoid allocations in Julia
+            m.getRef().setType(type);
+        })
         .method("getValue", [](T & m, size_t i) {
             // This is a cheeky convenience method that avoids allocations in Julia.
             return m.getValue().getVector()[i];

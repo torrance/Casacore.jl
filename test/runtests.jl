@@ -1,5 +1,6 @@
 using Casacore.Tables
 using Casacore.Measures
+using Casacore.LibCasacore
 using Test
 
 using Unitful
@@ -43,6 +44,10 @@ using Unitful
             @test direction.type == Measures.Directions.J2000
             @test isapprox(direction.lat, 0u"rad", atol=1e-4)
             @test isapprox(direction.long, 3π/4u"rad", atol=1e-4)
+
+            direction.type = Measures.Directions.B1950
+            @test direction.type == Measures.Directions.B1950
+            @test LibCasacore.getType(LibCasacore.getRef(direction.m)) == Int(Measures.Directions.B1950)
         end
 
         @testset "Frequency conversion REST to LSRD" begin

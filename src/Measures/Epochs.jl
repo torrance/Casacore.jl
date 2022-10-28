@@ -79,6 +79,9 @@ function Base.setproperty!(x::Epoch, name::Symbol, v)
     if name == :time
         x.cache[] = ustrip(Float64, U.d, v)
         _setdata!(x, x.cache)
+    elseif name === :type
+        setfield!(x, :type, v)
+        LibCasacore.setType(x.m, Int(v))
     else
         setfield!(x, name, v)
     end

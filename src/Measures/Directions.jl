@@ -114,6 +114,9 @@ function Base.setproperty!(x::Direction, name::Symbol, v)
         x.cache[2] = cos(lat) * sin(long)
         x.cache[3] = sin(lat)
         _setdata!(x, x.cache)
+    elseif name === :type
+        setfield!(x, :type, v)
+        LibCasacore.setType(x.m, Int(v))
     else
         setfield!(x, name, v)
     end

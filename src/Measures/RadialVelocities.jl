@@ -62,6 +62,9 @@ function Base.setproperty!(x::RadialVelocity, name::Symbol, v)
     if name == :velocity
         x.cache[] = ustrip(Float64, U.m / U.s, v)
         _setdata!(x, x.cache)
+    elseif name === :type
+        setfield!(x, :type, v)
+        LibCasacore.setType(x.m, Int(v))
     else
         setfield!(x, name, v)
     end

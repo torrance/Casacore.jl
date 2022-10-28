@@ -70,6 +70,9 @@ function Base.setproperty!(x::Doppler, name::Symbol, v)
         end
         x.cache[] = v
         _setdata!(x, x.cache)
+    elseif name === :type
+        setfield!(x, :type, v)
+        LibCasacore.setType(x.m, Int(v))
     else
         setfield!(x, name, v)
     end

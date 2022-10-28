@@ -95,6 +95,9 @@ function Base.setproperty!(x::Baseline, name::Symbol, v)
         x.cache[2] = ustrip(Float64, U.m, x.y)
         x.cache[3] = ustrip(Float64, U.m, v)
         _setdata!(x, x.cache)
+    elseif name === :type
+        setfield!(x, :type, v)
+        LibCasacore.setType(x.m, Int(v))
     else
         setfield!(x, name, v)
     end
