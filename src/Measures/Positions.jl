@@ -47,6 +47,30 @@ function Position(
     )
 end
 
+function Position(observatory::Symbol)
+    position = zero(Position)
+    if !LibCasacore.Observatory(position.m, LibCasacore.String(observatory))
+        throw(ErrorException("Observatory $(observatory) is unknown"))
+    end
+
+    # Type has been set, and we need to align our Julia type with the underlying object type.
+    mtype = LibCasacore.getType(LibCasacore.getRef(position.m))
+    for type in instances(Types)
+        if Int(type) == mtype
+            position.type = type
+            @goto found
+        end
+    end
+    throw(ErrorException("Unrecognised Position type (type=$(type)) set during call to observatory()"))
+    @label found
+
+    return position
+end
+
+function observatories()
+    return map(Symbol, LibCasacore.Observatories()[])
+end
+
 Base.zero(::Type{Position}) = Position(DEFAULT, 0 * U.m, 0 * U.m, 0 * U.m)
 
 function Base.propertynames(x::Position, private::Bool=false)

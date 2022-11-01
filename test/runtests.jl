@@ -68,7 +68,10 @@ using Unitful
         end
 
         @testset "EarthMagnetic conversion ITRF to AZEL" begin
-            pos = Measures.Position(Measures.Positions.ITRF, 6378.1u"km", 0u"km", 0u"km")
+            # Load position by observatory name
+            @test :MWA32T ∈ Measures.Positions.observatories()
+            pos = Measures.Position(:MWA32T)
+            @test pos.type == Measures.Positions.WGS84
             time = Measures.Epoch(Measures.Epochs.DEFAULT, 59857u"d")
 
             bfield = Measures.EarthMagnetic(Measures.EarthMagnetics.DEFAULT, -1u"T", -1u"T", -1u"T")

@@ -15,6 +15,7 @@
 #include <casacore/measures/Measures/MCRadialVelocity.h>
 #include <casacore/measures/Measures/MCuvw.h>
 #include <casacore/measures/Measures/MeasConvert.h>
+#include <casacore/measures/Measures/MeasTable.h>
 #include <casacore/measures/Measures/MBaseline.h>
 #include <casacore/measures/Measures/MDirection.h>
 #include <casacore/measures/Measures/MDoppler.h>
@@ -610,4 +611,7 @@ JLCXX_MODULE define_julia_module(jlcxx::Module &mod) {
     mod.method("fromDoppler", [](const MDoppler & dop, MRadialVelocity::Types type) {
         return MRadialVelocity::fromDoppler(dop, type);
     });
+
+    mod.method("Observatories", &casacore::MeasTable::Observatories);
+    mod.method("Observatory", &casacore::MeasTable::Observatory);
 }
