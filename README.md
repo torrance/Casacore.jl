@@ -455,10 +455,3 @@ end
 ## Casacore.LibCasacore
 
 All objects and methods that are exposed by CxxWrap are available in LibCasacore. This is not a stable API and may be subject to change.
-
-## Still to do
-
-* Utility function: create empty measurement set
-* Table keywords (?)
-* Doppler/frequency/radial velocity conversions
-* Observatories
