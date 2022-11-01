@@ -1,6 +1,6 @@
 module Measures
 
-export mconvert, mconvert!
+export mconvert, mconvert!, radius, long, lat
 
 using Unitful: Unitful as U, ustrip
 
@@ -82,7 +82,7 @@ using .Directions: Direction
 using .EarthMagnetics: EarthMagnetic
 using .Epochs: Epoch
 using .Frequencies: Frequency
-using .Positions: Position
+using .Positions: Position, radius, long, lat
 using .RadialVelocities: RadialVelocity
 using .UVWs: UVW
 

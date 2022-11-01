@@ -37,6 +37,16 @@ function Position(type::Types, x::U.Length, y::U.Length, z::U.Length, measures::
     return Position(type, measure, value, zeros(3))
 end
 
+function Position(
+    type::Types, r::U.Length, long::U.DimensionlessQuantity, lat::U.DimensionlessQuantity, measures::AbstractMeasure...;
+    offset::Union{Nothing, Position}=nothing
+)
+    return Position(
+        type, r * cos(lat) * cos(long), r * cos(lat) * sin(long), r * sin(lat), measures...;
+        offset
+    )
+end
+
 Base.zero(::Type{Position}) = Position(DEFAULT, 0 * U.m, 0 * U.m, 0 * U.m)
 
 function Base.propertynames(x::Position, private::Bool=false)
@@ -78,6 +88,20 @@ function Base.setproperty!(x::Position, name::Symbol, v)
         setfield!(x, name, v)
     end
     return nothing
+end
+
+function radius(d::Position)
+    return hypot(LibCasacore.getValue.((d.m,), (0, 1, 2))...) * U.m
+end
+
+function long(d::Position)
+    x, y = LibCasacore.getValue(d.m, 0), LibCasacore.getValue(d.m, 1)
+    return atan(y, x) * U.rad
+end
+
+function lat(d::Position)
+    x, y, z = LibCasacore.getValue.((d.m,), (0, 1, 2))
+    return asin(z / hypot(x, y, z)) * U.rad
 end
 
 function Converter(in::Types, out::Types, measures::AbstractMeasure...)

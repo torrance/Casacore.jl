@@ -85,7 +85,12 @@ using Unitful
         end
 
         @testset "Baseline conversion from ITRF to J2000 to UVW" begin
-            refpos = Measures.Position(Measures.Positions.ITRF, 6378.1u"km", 0u"km", 0u"km")
+            # Use alternative (r, long, lat) constructor for Position
+            refpos = Measures.Position(Measures.Positions.ITRF, 6378.1u"km", 37u"°", -23u"°")
+            @test radius(refpos) ≈ 6378.1u"km"
+            @test long(refpos) ≈ 37u"°"
+            @test lat(refpos) ≈ -23u"°"
+
             time = Measures.Epoch(Measures.Epochs.DEFAULT, 59857u"d")
             refdirection = Measures.Direction(Measures.Directions.J2000, 27u"°", 25u"°")
 
