@@ -14,15 +14,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        version:
+          - '1.8'
+          - 'nightly'
         os:
           - ubuntu-latest
         arch:
           - x64
-        include:
-          - version: '1.8'
-            libjulia: '1.8'
-          - version: 'nightly'
-            libjulia: '1.9'
     steps:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@v1
@@ -32,7 +30,7 @@ jobs:
       - name: Install BinaryBuilder
         run: julia -e 'using Pkg; Pkg.add("BinaryBuilder")'
       - name: Build casacorecxx
-        run: julia build_tarballs.jl --deploy=local x86_64-linux-gnu-cxx11-julia_version+${{ matrix.libjulia }}
+        run: julia build_tarballs.jl --deploy=local x86_64-linux-gnu-cxx11-julia_version+${{ matrix.version }}
       - name: Add casacorecxx
         run: julia --project=. -e 'using Pkg; Pkg.develop("casacorecxx_jll")'
       - uses: julia-actions/julia-buildpkg@v1
