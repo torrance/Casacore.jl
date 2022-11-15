@@ -231,6 +231,20 @@ JLCXX_MODULE define_julia_module(jlcxx::Module &mod) {
             wrapped.method("tovector", static_cast<std::vector<T> (WrappedT::*)(void) const>(&Array<T>::tovector));
             wrapped.method("getStorage", static_cast<const T * (WrappedT::*)(bool &) const>(&WrappedT::getStorage));
             wrapped.method("freeStorage", &WrappedT::freeStorage);
+            wrapped.method("copy!", [](WrappedT & dest, const jlcxx::ArrayRef<jl_value_t*> src) {
+                auto srciter = src.begin();
+                auto destend = dest.end();
+                for (auto destiter = dest.begin(); destiter != destend; ++destiter) {
+                    *destiter = *jlcxx::unbox<T*>(*srciter);
+                    ++srciter;
+                };
+            });
+            wrapped.method("copy!", [](jlcxx::ArrayRef<jl_value_t*> dest, const WrappedT & src) {
+                auto srcend = src.end();
+                for (auto srciter = src.begin(); srciter != srcend; ++srciter) {
+                    dest.push_back(jlcxx::box<T>(*srciter));
+                };
+            });
         });
 
     mod.add_type<jlcxx::Parametric<jlcxx::TypeVar<1>>>("Array")
@@ -260,6 +274,20 @@ JLCXX_MODULE define_julia_module(jlcxx::Module &mod) {
             wrapped.method("tovector", static_cast<std::vector<T> (WrappedT::*)(void) const>(&WrappedT::tovector));
             wrapped.method("getStorage", static_cast<const T * (WrappedT::*)(bool &) const>(&WrappedT::getStorage));
             wrapped.method("freeStorage", &WrappedT::freeStorage);
+            wrapped.method("copy!", [](WrappedT & dest, const jlcxx::ArrayRef<jl_value_t*> src) {
+                auto srciter = src.begin();
+                auto destend = dest.end();
+                for (auto destiter = dest.begin(); destiter != destend; ++destiter) {
+                    *destiter = *jlcxx::unbox<T*>(*srciter);
+                    ++srciter;
+                };
+            });
+            wrapped.method("copy!", [](jlcxx::ArrayRef<jl_value_t*> dest, const WrappedT & src) {
+                auto srcend = src.end();
+                for (auto srciter = src.begin(); srciter != srcend; ++srciter) {
+                    dest.push_back(jlcxx::box<T>(*srciter));
+                };
+            });
         });
 
     /*
