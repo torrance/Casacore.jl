@@ -114,12 +114,16 @@ end
 
 getcxxtype(::Type{T}) where {T} = T
 getcxxtype(::Type{Bool}) = CxxBool
-getcxxtype(::Type{Int}) = CxxLongLong
+getcxxtype(::Type{Int8}) = CxxChar
+getcxxtype(::Type{UInt8}) = CxxUChar
+getcxxtype(::Type{Int64}) = CxxLongLong
 getcxxtype(::Type{UInt64}) = CxxULongLong
 getcxxtype(::Type{Base.String}) = String
 
 getjuliatype(::Type{T}) where {T} = T
 getjuliatype(::Type{CxxBool}) = Bool
+getjuliatype(::Type{CxxChar}) = Int8
+getjuliatype(::Type{CxxUChar}) = UInt8
 getjuliatype(::Type{CxxLongLong}) = Int64
 getjuliatype(::Type{String}) = Base.String
 

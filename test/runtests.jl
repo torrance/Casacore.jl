@@ -442,6 +442,27 @@ using Unitful
             end
         end
 
+        @testset "Cxx <-> Julia type conversions" begin
+            @testset "Bool" begin
+                table[:BOOL] = Tables.ArrayColumnDesc{Bool, 2}()
+                column = table[:BOOL]
+                fill!(column, [true false; true false])
+                @test column[33] == [true false; true false]
+                column[33] = [false false; false true]
+                @test column[33] == [false false; false true]
+            end
+
+            @testset "Int64" begin
+                table[:INT64] = Tables.ArrayColumnDesc{Int64, 2}((2, 3))
+                column = table[:INT64]
+                fill!(column, 6)
+                @test column[1, 3, 33] == 6
+                val = rand(Int64, 2, 3)
+                column[:, :, 33] = val
+                @test column[:, :, 33] == val
+            end
+        end
+
         @testset "Strings" begin
             @testset "Scalar columns" begin
                 table[:STRING] = fill("Oh hi there", 1_000)::Vector{String}
