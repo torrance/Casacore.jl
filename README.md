@@ -8,7 +8,7 @@ This package provides a high-level interface to use Casacore from Julia.
 
 This package uses [casacorecxx](https://github.com/torrance/casacorecxx) which uses [CxxWrap](https://github.com/JuliaInterop/CxxWrap.jl) to wrap the C++ Casacore codebase. These raw objects and methods are available in `Casacore.LibCasacore`.
 
-This package is under active development. Casacore is a very large package, and this Julia interface has been developed with specific usecases in mind, limited by the author's own experience. Issues and pull requests are very welcome to help expand on functionality and use cases.
+This package is under active development. Casacore is a very large package, and this Julia interface has been developed with specific use cases in mind, limited by the author's own experience. Issues and pull requests are very welcome to help expand on functionality and use cases.
 
 ## Installation
 
@@ -24,7 +24,7 @@ Casacore.jl is limited to the currently supported architectures of `casacore_jll
 
 ## Updating the ephemeris data
 
-When installing Casacore.jl, the build step downloads and installs the latest ephermis data for use in `Casacore.Measures`. To update this dataset with a later version, the build step can be manually rerun:
+When installing Casacore.jl, the build step downloads and installs the latest ephemeris data for use in `Casacore.Measures`. To update this dataset with a later version, the build step can be manually rerun:
 
 ```julia
 ] build Casacore
@@ -186,7 +186,7 @@ corrected[:, 1:192, :] <: Array{ComplexF64, 3}
 Columns that do not have a fixed size will be typed as providing arrays of arrays. For example:
 
 ```julia
-# No fixed size, but known dimemsion per cell
+# No fixed size, but known dimension per cell
 weightcol = table[:WEIGHT]  # <: Column{Vector{Float64}, 1}
 size(weightcol) == (260000,)
 row = weightcol[2] <: Vector{Float64}
@@ -224,7 +224,7 @@ table[:NEWCOL] = coldesc
 typeof(table[:NEWCOL]) <: Column{Int, 3}
 ```
 
-Note that the dimesionality `N` of the `ArrayColumnDesc{T, N}` refers to the dimensionality of the cell. The dimesionality of the column additionally includes the rows.
+Note that the dimensionality `N` of the `ArrayColumnDesc{T, N}` refers to the dimensionality of the cell. The dimensionality of the column additionally includes the rows.
 
 The degenerate column types may also be created in this way:
 
@@ -295,7 +295,7 @@ Command accepts a standard Julia `String`, however note that in this case we've 
 
 Measures allow constructing objects that contain a value with respect to a particular reference frame. Examples include: an Altitude/Azimuth frame with respect to a particular location and time on Earth; a Right Ascension/Declination on the sky with respect to the J2000 system; or a time in UTC timezone.
 
-In Casacore, Measures are primarily implemented to allow conversions between types, and in Casacore.jl this is the primary usecase for which we have designed their use.
+In Casacore, Measures are primarily implemented to allow conversions between types, and in Casacore.jl this is the primary use case for which we have designed their use.
 
 ### Examples
 
@@ -450,6 +450,33 @@ azels = map(eachcol(radecs)) do (ra, dec)
     mconvert!(dir, dir, c)
     return dir.long, dir.lat
 end
+```
+
+### Observatories
+
+A limited set of observatories are known by Casacore and their positions can be loaded by name rather than explicitly providing coordinates.
+
+The full list of known observatories can be queried:
+
+```julia
+Measures.Positions.observatories()
+
+# 47-element Vector{Symbol}:
+#  :ALMA
+#  :ARECIBO
+#  ⋮
+#  :MWA32T
+#  Symbol("AMI-LA")
+```
+
+An observatory position can be constructed using the observatory name:
+
+```julia
+obs1 = Measures.Position(:ALMA)
+# Position(:type=WGS84, :x=1761.86 m, :y=-4307.63 m, :z=-1977.70 m)
+
+obs2 = Measures.Position(:ATCA)
+# Position(:type=ITRF, :x=-4.75091e6 m, :y=2.79290e6 m, :z=-3.20048e6 m)
 ```
 
 ## Casacore.LibCasacore
