@@ -436,15 +436,70 @@ using Unitful
                     column = table[:ARR]
                     fill!(column, 3)
                     @test all(column[:, :, :] .== 3)
-                    fill!(column, ones(3, 4))
-                    @test all(column[:, :, :] .== 1)
-                    @test_throws DimensionMismatch fill!(column, [1, 2, 3, 4])
+                    @test_throws MethodError fill!(column, ones(3, 4))
+                    @test_throws MethodError fill!(column, [1, 2, 3, 4])
                 end
             end
         end
 
+        @testset "Strings" begin
+            @testset "Scalar columns" begin
+                table[:STRING] = fill("Oh hi there", 1_000)::Vector{String}
+                column = table[:STRING]
+                @test column[4] == "Oh hi there"
+                column[4] = "Goodbye"
+                @test column[4] == "Goodbye"
+                column[50:149] = collect("Well well well" for _ in 1:100)
+                @test column[50:149] == collect("Well well well" for _ in 1:100)
+                fill!(column, "How are you?")
+                column[:] == fill("How are you?", 100)
+            end
+
+            @testset "Unknown dimension columns" begin
+                table[:STRING] = rand([["Oh";;], ["Hi";;;]], 1_000)::Vector{Array{String}}
+                column = table[:STRING]
+                @test column[4] == ["Oh";;] || column[4] == ["Hi";;;]
+                column[4] = ["Goodbye"]
+                @test column[4] == ["Goodbye"]
+                column[4] = fill("Oh hi", 3, 2)
+                @test column[4] == fill("Oh hi", 3, 2)
+                column[50:149] = (["Well well well", "And here they come"] for _ in 1:100)
+                @test column[50:149] == fill(["Well well well", "And here they come"], 100)
+                @test column[1, 50:149] == fill("Well well well", 100)
+                fill!(column, ["I'm" "just"; "fine" "thanks"])
+                @test all(column[:] .== [["I'm" "just"; "fine" "thanks"]])
+            end
+
+            @testset "Known dimension columns" begin
+                table[:STRING] = fill(["Oh" "hi"; "there" "dear"], 1_000)::Vector{Matrix{String}}
+                column = table[:STRING]
+                @test column[4] == ["Oh" "hi"; "there" "dear"]
+                @test_throws DimensionMismatch column[4] = ["Goodbye"]
+                column[4] = ["Goodbye" "we"; "never" "were"]
+                @test column[4] == ["Goodbye" "we"; "never" "were"]
+                vals = fill(["The" "Very"; "Last" "End"], 100)
+                column[50:149] = vals
+                @test column[50:149] == vals
+                @test all(column[2, 1:2, 50:149] .== ["Last"; "End";;])
+                fill!(column, ["I'm" "just"; "fine" "thanks"])
+                @test all(column[:] .== [["I'm" "just"; "fine" "thanks"]])
+            end
+
+            @testset "Fixed array columns" begin
+                table[:STRING] = fill("Hi", 3, 2, 1_000)
+                column = table[:STRING]
+                @test column[:, :, 4] == fill("Hi", 3, 2)
+                @test_throws DimensionMismatch column[:, :, 4] = ["Goodbye"]
+                column[:, :, 4] = ["Goodbye" "we"; "never" "were"; "really" "here"]
+                @test column[:, :, 4] == ["Goodbye" "we"; "never" "were"; "really" "here"]
+                @test column[:, 1, 4] == ["Goodbye", "never", "really"]
+                fill!(column, "Boop")
+                @test all(column[:, :, :] .== fill("Boop", 1, 1, 1))
+            end
+        end
+
         @testset "Delete columns" begin
-            for colname in [:SCALAR, :ARR_UNKNOWN, :ARR_NOSHAPE, :ARR]
+            for colname in [:SCALAR, :ARR_UNKNOWN, :ARR_NOSHAPE, :ARR, :STRING]
                 @test colname ∈ keys(table)
                 delete!(table, colname)
                 @test colname ∉ keys(table)

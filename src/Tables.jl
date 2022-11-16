@@ -112,46 +112,46 @@ Base.length(c::Column) = reduce(*, size(c))
 
 # Fill scalar column with value
 function Base.fill!(c::Column{T, 1, S}, x) where {T, N, S <: LibCasacore.ScalarColumn}
-    x = convert(T, x)
+    x = convert(LibCasacore.getcxxtype(T), x)
     LibCasacore.fillColumn(c.columnref, x)
     return c
 end
 
-# Fill array column with array
-function Base.fill!(c::Column{T, N, S}, x) where {T, N, S <: LibCasacore.ArrayColumn}
-    x = collect(eltype(T), x)
+# Fill array of arrays with array
+function Base.fill!(c::Column{T, 1, S}, x) where {T <: Array, N, S <: LibCasacore.ArrayColumn}
+    x = collect(LibCasacore.getcxxtype(eltype(T)), x)
+
+    # If x is a scalar, collect() creates an 0-dimensional array.
+    # But we need size() to report at least (1,)
     if ndims(x) == 0
-        x = [x[]] # We need size() to report at least (1,)
+        x = reshape(x, 1)
     end
 
+    # Check dimensionality of x matches cell, if it is known
     celldims = LibCasacore.ndimColumn(c.columnref)
-    cellshape = tuple(LibCasacore.shapeColumn(c.columnref)...)
-
-    # Special case: allow filling fixed array with single value
-    # We need to expand this value to an array
-    if length(x) == 1 && cellshape != ()
-        x = fill(x[], cellshape)
-    end
-
-    # Check dimensionality of fill value matches column
-    if cellshape != () && size(x) != cellshape
-        # Fixed size array
-        throw(DimensionMismatch("Expected fill!() value with size $(cellshape), got $(size(x))"))
-    elseif celldims != 0 && ndims(x) != celldims
-        # Fixed dimesion array
+    if celldims != 0 && ndims(x) != celldims
         throw(DimensionMismatch("Expected fill!() value with $(celldims) dimensions, got $(ndims(x))"))
-    else
-        # No set dimension or size of cells! Anything goes...
     end
 
-    GC.@preserve x begin
-        arr = LibCasacore.Array{LibCasacore.getcxxtype(eltype(T))}(
-            LibCasacore.IPosition(size(x)),
-            convert(Ptr{Cvoid}, pointer(x)),
-            LibCasacore.SHARE,
-        )
-        LibCasacore.fillColumn(c.columnref, arr)
-    end
+    arr = LibCasacore.Array{LibCasacore.getcxxtype(eltype(T))}(
+        LibCasacore.IPosition(size(x))
+    )
+    LibCasacore.copy!(arr, append!(Any[], x))
+    LibCasacore.fillColumn(c.columnref, arr)
+
+    return c
+end
+
+# Fill fixed array column with value
+function Base.fill!(c::Column{T, N, S}, x) where {T, N, S <: LibCasacore.ArrayColumn}
+    x = convert(LibCasacore.getcxxtype(T), x)
+
+    cellshape = tuple(LibCasacore.shapeColumn(c.columnref)...)
+    arr = LibCasacore.Array{LibCasacore.getcxxtype(T)}(
+        LibCasacore.IPosition(cellshape)
+    )
+    LibCasacore.set(arr, x)
+    LibCasacore.fillColumn(c.columnref, arr)
 
     return c
 end
@@ -379,6 +379,198 @@ function Base.setindex!(c::Column{T, N, S}, v, I::Vararg{Union{Int, Colon, Ordin
     return v
 end
 
+# Setindex and getindex! for String type
+# This is special since it is not a primitive type and does not allow for simple bit coversions.
+
+function Base.getindex(c::Column{String, 1, S}, i::Int) where {S <: LibCasacore.ScalarColumn}
+    @boundscheck checkbounds(c, i)
+    return String(LibCasacore.getindex(c.columnref, i - 1))
+end
+
+function Base.getindex(c::Column{String, 1, S}, i::Union{Colon, OrdinalRange}) where {S <: LibCasacore.ScalarColumn}
+    @boundscheck checkbounds(c, i)
+    i, = to_indices(c, (i,))
+    return map(i) do idx
+        @inbounds c[idx]
+    end
+
+    # Fetch data
+    rowslicer = LibCasacore.Slicer(broadcast(.-, i, 1)...)
+    casacore_vector = LibCasacore.getColumnRange(c.columnref, rowslicer)
+
+    # Copy into dest and fix type and size
+    dest = Any[]
+    LibCasacore.copy!(dest, casacore_vector)
+
+    # Correctly size output array and convert to Julia String
+    shape = length.(Base.index_shape(i...))
+    dest = map(String, reshape(dest, shape))
+
+    return dest
+end
+
+function Base.setindex!(c::Column{String, 1, S}, v, i::Int) where {S <: LibCasacore.ScalarColumn}
+    @boundscheck checkbounds(c, i)
+    LibCasacore.put(c.columnref, i - 1, LibCasacore.String(string(v)))
+    return nothing
+end
+
+function Base.setindex!(c::Column{String, 1, S}, v, i::Union{Colon, OrdinalRange}) where {S <: LibCasacore.ScalarColumn}
+    @boundscheck checkbounds(c, i)
+    i, = to_indices(c, (i,))
+
+    varray = Vector{Any}(undef, length(v))
+    map!(LibCasacore.String ∘ string, varray, v)
+    Base.setindex_shape_check(varray, length(i))
+
+    casacore_vector = LibCasacore.Vector{LibCasacore.String}(
+        LibCasacore.IPosition(size(i))
+    )
+    LibCasacore.copy!(casacore_vector, varray)
+
+    rowslicer = LibCasacore.Slicer(i .- 1)
+    LibCasacore.putColumnRange(c.columnref, rowslicer, casacore_vector)
+
+    return nothing
+end
+
+function Base.getindex(c::Column{T, 1, S}, i::Int) where {T <: Array{String}, S <: LibCasacore.ArrayColumn}
+    @boundscheck checkbounds(c, i)
+    i, = to_indices(c, (i,))
+
+    # First check if row contains anything at all
+    if LibCasacore.isDefined(c.columnref, i - 1) == 0
+        # If dimensions of T are not set, return 0 length vector
+        if T == Array{String}
+            return T(undef, 0)
+        # Otherwise we return zero length N-dimensional vector
+        else
+            return T(undef, ntuple(zero, ndims(T)))
+        end
+    end
+
+    dest = Any[]  # Type Any is required for CxxWrap ArrayRef
+    casacore_array = LibCasacore.get(c.columnref, i - 1)
+    LibCasacore.copy!(dest, casacore_array)
+
+    return map(String, reshape(dest, size(casacore_array)))
+end
+
+function Base.getindex(c::Column{T, 1, S}, i::Union{Colon, OrdinalRange}) where {T <: Array{String}, S <: LibCasacore.ArrayColumn}
+    @boundscheck checkbounds(c, i)
+    i, = to_indices(c, (i,))
+
+    return map(i) do idx
+        @inbounds c[idx]
+    end
+end
+
+function Base.setindex!(c::Column{T, 1, S}, v, i::Int) where {T <: Array{String}, S <: LibCasacore.ArrayColumn}
+    @boundscheck checkbounds(c, i)
+
+    # Check dimensionality of value matches column
+    celldims = LibCasacore.ndimColumn(c.columnref)
+    if celldims != 0 && ndims(v) != celldims
+        # Fixed dimension array
+        throw(DimensionMismatch("Expected value with $(celldims) dimensions, got $(ndims(v))"))
+    end
+
+    varray = Vector{Any}(undef, length(v))  # Type Any is required for CxxWrap ArrayRef
+    map!(LibCasacore.String ∘ string, varray, v)
+
+    casacore_array = LibCasacore.Array{LibCasacore.String}(LibCasacore.IPosition(size(v)))
+    LibCasacore.copy!(casacore_array, varray)
+    LibCasacore.put(c.columnref, i - 1, casacore_array)
+
+    return nothing
+end
+
+function Base.setindex!(c::Column{T, 1, S}, v, i::Union{Colon, OrdinalRange}) where {T <: Array{String}, S <: LibCasacore.ArrayColumn}
+    @boundscheck checkbounds(c, i)
+    i, = to_indices(c, (i,))
+
+    broadcast(i, v) do idx, val
+        @inbounds c[idx] = val
+    end
+    return nothing
+end
+
+function Base.getindex(c::Column{T, N, S}, I::Vararg{Union{Int, Colon, OrdinalRange}}) where {T <: Union{String, Array{String}}, N, S <: LibCasacore.ArrayColumn}
+    @boundscheck checkbounds(c, I...)
+
+    # We have to do a little extra work if we are forcing a multidim index
+    # into an array with no fixed size
+    if N == 1 && T <: Array
+        Icell, Irow = I[begin:end - 1], I[end]
+
+        Irow, = to_indices(c, (Irow,))
+        if Colon() in Icell
+            throw(ArgumentError("A column with no fixed size cannot be indexed with ':' except along the rows."))
+        end
+
+        I =  (Icell..., Irow)
+    else
+        I = to_indices(c, I)
+    end
+
+    # 0- to 1-based indexing
+    I = broadcast(.-, I, 1)
+    rowslicer = LibCasacore.Slicer(I[end])
+    cellslicer = LibCasacore.Slicer(I[1:(end - 1)]...)
+
+    # Retrieve column slice
+    casacore_array = LibCasacore.getColumnRange(c.columnref, rowslicer, cellslicer)
+
+    # Copy out data from array
+    dest = Any[]
+    LibCasacore.copy!(dest, casacore_array)
+
+    # Transform dest to typed and correctly sized array
+    shape = length.(Base.index_shape(I...))  # singleton dimensions are collapsed
+    dest = map(String, reshape(dest, shape))
+
+    return zerodim_as_scalar(dest)
+end
+
+function Base.setindex!(c::Column{T, N, S}, v::AbstractString, I::Vararg{Int}) where {T <: Union{String, Array{String}}, N, M, S <: LibCasacore.ArrayColumn}
+    c[I...] = [string(v)]
+end
+
+function Base.setindex!(c::Column{T, N, S}, v, I::Vararg{Union{Int, Colon, OrdinalRange}}) where {T <: Union{String, Array{String}}, N, S <: LibCasacore.ArrayColumn}
+    @boundscheck checkbounds(c, I...)
+
+    # We have to do a little extra work if we are forcing a multidim index
+    # into an array with no fixed size
+    if N == 1 && T <: Array
+        Icell, Irow = I[begin:end - 1], I[end]
+
+        Irow, = to_indices(c, (Irow,))
+        if Colon() in Icell
+            throw(ArgumentError("A column with no fixed size cannot be indexed with ':' except along the rows."))
+        end
+
+        I =  (Icell..., Irow)
+    else
+        I = to_indices(c, I)
+    end
+
+    varray = Vector{Any}(undef, length(v))
+    map!(LibCasacore.String ∘ string, varray, v)
+    Base.setindex_shape_check(varray, length.(I)...)
+
+    # 1- to 0-based indexing
+    I = broadcast(.-, I, 1)
+    rowslicer = LibCasacore.Slicer(I[end])
+    cellslicer = LibCasacore.Slicer(I[1:(end - 1)]...)
+
+    # Copy contents of varray into caacore array and then into the column
+    casacore_array = LibCasacore.Array{LibCasacore.String}(LibCasacore.IPosition(length.(I)))
+    LibCasacore.copy!(casacore_array, varray)
+    LibCasacore.putColumnRange(c.columnref, rowslicer, cellslicer, casacore_array)
+
+    return nothing
+end
+
 struct Table
     tableref::LibCasacore.TableAllocated
 end
@@ -555,7 +747,7 @@ function Base.setindex!(x::Table, v::Vector{T}, name::Symbol) where {N, M, T <: 
     x[name] = coldesc
 
     # Populate column with data from v
-    x[name][:] .= v
+    x[name][:] = v
 
     return v
 end
@@ -571,7 +763,7 @@ function Base.setindex!(x::Table, v::Vector{T}, name::Symbol) where {M, T <: Arr
     x[name] = coldesc
 
     # Populate column with data from v
-    x[name][:] .= v
+    x[name][:] = v
 
     return v
 end

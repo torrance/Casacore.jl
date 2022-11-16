@@ -231,11 +231,12 @@ JLCXX_MODULE define_julia_module(jlcxx::Module &mod) {
             wrapped.method("tovector", static_cast<std::vector<T> (WrappedT::*)(void) const>(&Array<T>::tovector));
             wrapped.method("getStorage", static_cast<const T * (WrappedT::*)(bool &) const>(&WrappedT::getStorage));
             wrapped.method("freeStorage", &WrappedT::freeStorage);
+            wrapped.method("set", &WrappedT::set);
             wrapped.method("copy!", [](WrappedT & dest, const jlcxx::ArrayRef<jl_value_t*> src) {
                 auto srciter = src.begin();
                 auto destend = dest.end();
                 for (auto destiter = dest.begin(); destiter != destend; ++destiter) {
-                    *destiter = *jlcxx::unbox<T*>(*srciter);
+                    *destiter = jlcxx::unbox<T>(*srciter);
                     ++srciter;
                 };
             });
@@ -274,11 +275,12 @@ JLCXX_MODULE define_julia_module(jlcxx::Module &mod) {
             wrapped.method("tovector", static_cast<std::vector<T> (WrappedT::*)(void) const>(&WrappedT::tovector));
             wrapped.method("getStorage", static_cast<const T * (WrappedT::*)(bool &) const>(&WrappedT::getStorage));
             wrapped.method("freeStorage", &WrappedT::freeStorage);
+            wrapped.method("set", &WrappedT::set);
             wrapped.method("copy!", [](WrappedT & dest, const jlcxx::ArrayRef<jl_value_t*> src) {
                 auto srciter = src.begin();
                 auto destend = dest.end();
                 for (auto destiter = dest.begin(); destiter != destend; ++destiter) {
-                    *destiter = *jlcxx::unbox<T*>(*srciter);
+                    *destiter = jlcxx::unbox<T>(*srciter);
                     ++srciter;
                 };
             });

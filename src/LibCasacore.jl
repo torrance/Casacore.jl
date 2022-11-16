@@ -116,14 +116,17 @@ getcxxtype(::Type{T}) where {T} = T
 getcxxtype(::Type{Bool}) = CxxBool
 getcxxtype(::Type{Int}) = CxxLongLong
 getcxxtype(::Type{UInt64}) = CxxULongLong
+getcxxtype(::Type{Base.String}) = String
 
 getjuliatype(::Type{T}) where {T} = T
 getjuliatype(::Type{CxxBool}) = Bool
 getjuliatype(::Type{CxxLongLong}) = Int64
+getjuliatype(::Type{String}) = Base.String
 
 @cxxdereference Base.String(x::String) = (unsafe_string ∘ LibCasacore.c_str)(x)
 @cxxdereference Base.Symbol(x::String) = (Symbol ∘ unsafe_string ∘ LibCasacore.c_str)(x)
 String(x::Symbol) = (String ∘ Base.String)(x)
+Base.convert(::Type{String}, x) = String(string(x))
 
 function Slicer(is::Vararg{Union{Int, OrdinalRange}, N}) where N
     _step(::Int) = 1 # This little function lets us treat indices as ranges
