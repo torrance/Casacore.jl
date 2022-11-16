@@ -3,10 +3,10 @@ on:
   pull_request:
     branches:
       - main
-      - githubactions1
   push:
     branches:
       - main
+      - githubactions1
     tags: '*'
 jobs:
   test:
