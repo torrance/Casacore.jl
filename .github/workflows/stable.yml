@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          ref: '03db2def17b54435fbf0e9a462c88ebf53f57f68'
+          ref: 'v0.1.0'
       - uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.version }}
