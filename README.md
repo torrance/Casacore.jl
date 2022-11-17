@@ -195,6 +195,13 @@ size(row) == (4,)
 
 These small array allocations for every row are not great for performance, but are required since we cannot know the size (and sometimes the dimension) of the rows ahead of time.
 
+As a shorthand, the full contents of the array may be loaded using the empty index which can be useful for exploratory work without having to first check the dimensions of a column. For example:
+
+```julia
+corrected[] == corrected[:, :, :]
+weightcol[] == weightcol[:]
+```
+
 #### Forced multidimensional indexing
 
 If you _know_ that that your column with no fixed size actually contains constant-sized arrays, you can force Casacore to attempt to load these as one contiguous array:
