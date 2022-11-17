@@ -229,6 +229,14 @@ using Unitful
                     @inferred column[:]
                 end
 
+                @testset "Empty index" begin
+                    column = table[:SCALAR]
+                    @test column[] == column[:]
+                    vals = rand(1_000)
+                    column[] = vals
+                    @test column[] == vals
+                end
+
                 @testset "fill!()" begin
                     column = table[:SCALAR]
                     fill!(column, 2)
@@ -290,6 +298,14 @@ using Unitful
                     @test column[:] == vals
                     @test_throws DimensionMismatch column[:] = [rand(ComplexF64, rand([(3,), (2, 2), (1, 2, 1)])...) for _ in 1:100]
                     @inferred column[:]
+                end
+
+                @testset "Empty index" begin
+                    column = table[:ARR_UNKNOWN]
+                    @test column[] == column[:]
+                    vals = fill(rand(ComplexF64, 2, 3), 1_000)
+                    column[] = vals
+                    @test column[] == vals
                 end
 
                 @testset "fill!()" begin
@@ -359,6 +375,14 @@ using Unitful
                     @test column[:] == vals
                     @test_throws DimensionMismatch column[:] = [rand(Int32, rand(0:6, 2)...) for _ in 1:100]
                     @inferred column[:]
+                end
+
+                @testset "Empty index" begin
+                    column = table[:ARR_NOSHAPE]
+                    @test column[] == column[:]
+                    vals = fill(rand(Int32, 2, 2), 1_000)
+                    column[] = vals
+                    @test column[] == vals
                 end
 
                 @testset "fill!()" begin
@@ -432,6 +456,14 @@ using Unitful
                     @inferred column[:, 2, :]
                 end
 
+                @testset "Empty index" begin
+                    column = table[:ARR]
+                    @test column[] == column[:, :, :]
+                    vals = rand(Int16, 3, 4, 1_000)
+                    column[] = vals
+                    @test column[] == vals
+                end
+
                 @testset "fill!()" begin
                     column = table[:ARR]
                     fill!(column, 3)
@@ -474,6 +506,11 @@ using Unitful
                 @test column[50:149] == collect("Well well well" for _ in 1:100)
                 fill!(column, "How are you?")
                 column[:] == fill("How are you?", 100)
+                @test begin
+                    vals = fill("How are you", 1_000)
+                    column[] = vals
+                    column[] == vals
+                end
             end
 
             @testset "Unknown dimension columns" begin
@@ -489,6 +526,11 @@ using Unitful
                 @test column[1, 50:149] == fill("Well well well", 100)
                 fill!(column, ["I'm" "just"; "fine" "thanks"])
                 @test all(column[:] .== [["I'm" "just"; "fine" "thanks"]])
+                @test begin
+                    vals = fill(["How are you";;], 1_000)
+                    column[] = vals
+                    column[] == vals
+                end
             end
 
             @testset "Known dimension columns" begin
@@ -504,6 +546,11 @@ using Unitful
                 @test all(column[2, 1:2, 50:149] .== ["Last"; "End";;])
                 fill!(column, ["I'm" "just"; "fine" "thanks"])
                 @test all(column[:] .== [["I'm" "just"; "fine" "thanks"]])
+                @test begin
+                    vals = fill(["Oh" "how"; "are" "you"], 1_000)
+                    column[] = vals
+                    column[] == vals
+                end
             end
 
             @testset "Fixed array columns" begin
@@ -516,6 +563,11 @@ using Unitful
                 @test column[:, 1, 4] == ["Goodbye", "never", "really"]
                 fill!(column, "Boop")
                 @test all(column[:, :, :] .== fill("Boop", 1, 1, 1))
+                @test begin
+                    vals = fill("Bye bye bye", 3, 2, 1_000)
+                    column[] = vals
+                    column[] == vals
+                end
             end
         end
 

@@ -100,25 +100,27 @@ function Column(tableref::LibCasacore.Table, name::LibCasacore.String)
 end
 
 # Column: implements indexing
-function Base.size(c::Column{T, N, S})::NTuple{N, Int} where {T, N, S <: LibCasacore.ArrayColumn}
+function Base.size(c::Column{T, N, <:LibCasacore.ArrayColumn})::NTuple{N, Int} where {T, N}
     return (LibCasacore.shapeColumn(c.columnref)..., LibCasacore.nrow(c.columnref))
 end
 
-function Base.size(c::Column{T, 1, S})::NTuple{1, Int} where {T, S <: LibCasacore.ScalarColumn}
+function Base.size(c::Column{T, 1, <:LibCasacore.ScalarColumn})::NTuple{1, Int} where T
     return (LibCasacore.nrow(c.columnref),)
 end
 
 Base.length(c::Column) = reduce(*, size(c))
 
+Base.ndims(c::Column{T, N}) where {T, N} = N
+
 # Fill scalar column with value
-function Base.fill!(c::Column{T, 1, S}, x) where {T, N, S <: LibCasacore.ScalarColumn}
+function Base.fill!(c::Column{T, 1, <:LibCasacore.ScalarColumn}, x) where T
     x = convert(LibCasacore.getcxxtype(T), x)
     LibCasacore.fillColumn(c.columnref, x)
     return c
 end
 
 # Fill array of arrays with array
-function Base.fill!(c::Column{T, 1, S}, x) where {T <: Array, N, S <: LibCasacore.ArrayColumn}
+function Base.fill!(c::Column{T, 1, <:LibCasacore.ArrayColumn}, x) where T <: Array
     x = collect(LibCasacore.getcxxtype(eltype(T)), x)
 
     # If x is a scalar, collect() creates an 0-dimensional array.
@@ -143,7 +145,7 @@ function Base.fill!(c::Column{T, 1, S}, x) where {T <: Array, N, S <: LibCasacor
 end
 
 # Fill fixed array column with value
-function Base.fill!(c::Column{T, N, S}, x) where {T, N, S <: LibCasacore.ArrayColumn}
+function Base.fill!(c::Column{T, N, <:LibCasacore.ArrayColumn}, x) where {T, N}
     x = convert(LibCasacore.getcxxtype(T), x)
 
     cellshape = tuple(LibCasacore.shapeColumn(c.columnref)...)
@@ -156,7 +158,10 @@ function Base.fill!(c::Column{T, N, S}, x) where {T, N, S <: LibCasacore.ArrayCo
     return c
 end
 
-@inline function checkbounds(x::Column{T, N}, I::Vararg{Union{Int, Colon, OrdinalRange}, M}) where {T, N, M}
+const IndexTypes = Union{Int, Colon, OrdinalRange}
+
+# Scalar or fixed shape multidim arrays
+@inline function checkbounds(x::Column{T, N}, I::Vararg{IndexTypes, M}) where {T, N, M}
     if N != M
         throw(DimensionMismatch("Indexing into $(N)-dimensional Column with $(M) indices"))
     end
@@ -165,12 +170,12 @@ end
 end
 
 # Row index on array of arrays
-@inline function checkbounds(x::Column{T, 1, S}, i::Union{Int, Colon, OrdinalRange}) where {T, S <: LibCasacore.ArrayColumn}
+@inline function checkbounds(x::Column{T, 1, <:LibCasacore.ArrayColumn}, i::IndexTypes) where T
     Base.checkbounds_indices(Bool, axes(x), (i,)) || throw(BoundsError(x, i))
 end
 
 # Multidim index into array of arrays
-@inline function checkbounds(x::Column{T, 1, S}, I::Vararg{Union{Int, Colon, OrdinalRange}, M}) where {T, S <: LibCasacore.ArrayColumn, M}
+@inline function checkbounds(x::Column{T, 1, <:LibCasacore.ArrayColumn}, I::Vararg{IndexTypes, M}) where {T, M}
     # Base.ndims() is not defined is N is unset.
     function ndims(::Type{P}) where {T, N, P <: Array{T, N}}
         return N
@@ -190,8 +195,17 @@ end
 # Required for to_indices() to work
 Base.eachindex(::IndexLinear, A::Column) = (@inline; Base.oneto(length(A)))
 
+# Convenience methods to read/write full column without first checking dims
+function Base.getindex(c::Column)
+    return c[ntuple(_ -> :, ndims(c))...]
+end
+
+function Base.setindex!(c::Column, v)
+    return c[ntuple(_ -> :, ndims(c))...] = v
+end
+
 # Scalar array indexing
-function Base.getindex(c::Column{T, 1, S}, i::Union{Int, Colon, OrdinalRange}) where {T, S <: LibCasacore.ScalarColumn}
+function Base.getindex(c::Column{T, 1, <:LibCasacore.ScalarColumn}, i::IndexTypes) where T
     @boundscheck checkbounds(c, i)
     i = to_indices(c, (i,))
 
@@ -212,7 +226,7 @@ function Base.getindex(c::Column{T, 1, S}, i::Union{Int, Colon, OrdinalRange}) w
     return zerodim_as_scalar(dest)
 end
 
-function Base.setindex!(c::Column{T, 1, S}, v, i::Union{Int, Colon, OrdinalRange}) where {T, S <: LibCasacore.ScalarColumn}
+function Base.setindex!(c::Column{T, 1, <:LibCasacore.ScalarColumn}, v, i::IndexTypes) where T
     @boundscheck checkbounds(c, i)
     i, = to_indices(c, (i,))
 
@@ -233,7 +247,7 @@ function Base.setindex!(c::Column{T, 1, S}, v, i::Union{Int, Colon, OrdinalRange
 end
 
 # Array of arrays indexing
-function Base.getindex(c::Column{T, 1, S}, i::Int)::T where {T <: Array, S <: LibCasacore.ArrayColumn}
+function Base.getindex(c::Column{T, 1, <:LibCasacore.ArrayColumn}, i::Int)::T where T <: Array
     @boundscheck checkbounds(c, i)
 
     # First check if row contains anything at all
@@ -262,7 +276,7 @@ function Base.getindex(c::Column{T, 1, S}, i::Int)::T where {T <: Array, S <: Li
     return dest
 end
 
-function Base.getindex(c::Column{T, 1, S}, i::Union{Colon, OrdinalRange})::Vector{T} where {T <: Array, S <: LibCasacore.ArrayColumn}
+function Base.getindex(c::Column{T, 1, <:LibCasacore.ArrayColumn}, i::Union{Colon, OrdinalRange})::Vector{T} where T <: Array
     @boundscheck checkbounds(c, i)
     i, = to_indices(c, (i,))
     return map(i) do i
@@ -270,7 +284,7 @@ function Base.getindex(c::Column{T, 1, S}, i::Union{Colon, OrdinalRange})::Vecto
     end
 end
 
-function Base.setindex!(c::Column{T, 1, S}, v, i::Int)::T where {T <: Array, S <: LibCasacore.ArrayColumn}
+function Base.setindex!(c::Column{T, 1, <:LibCasacore.ArrayColumn}, v, i::Int)::T where T <: Array
     @boundscheck checkbounds(c, i)
 
     # Check dimensionality of value matches column
@@ -292,7 +306,7 @@ function Base.setindex!(c::Column{T, 1, S}, v, i::Int)::T where {T <: Array, S <
     return v
 end
 
-function Base.setindex!(c::Column{T, 1, S}, v, i::Union{Int, Colon, OrdinalRange}) where {T <: Array, S <: LibCasacore.ArrayColumn}
+function Base.setindex!(c::Column{<:Array, 1, <:LibCasacore.ArrayColumn}, v, i::Union{Colon, OrdinalRange})
     @boundscheck checkbounds(c, i)
     i, = to_indices(c, (i,))
     broadcast(i, v) do idx, val
@@ -302,7 +316,8 @@ function Base.setindex!(c::Column{T, 1, S}, v, i::Union{Int, Colon, OrdinalRange
 end
 
 # Multidimensional array indexing
-function Base.getindex(c::Column{T, N, S}, I::Vararg{Union{Int, Colon, OrdinalRange}, M}) where {T, N, M, S <: LibCasacore.ArrayColumn}
+function Base.getindex(c::Column{T, N, <:LibCasacore.ArrayColumn}, i::IndexTypes, I::IndexTypes...) where {T, N}
+    I = (i, I...)
     @boundscheck checkbounds(c, I...)
 
     # We have to do a little extra work if we are forcing a multidim index
@@ -341,7 +356,8 @@ function Base.getindex(c::Column{T, N, S}, I::Vararg{Union{Int, Colon, OrdinalRa
     return zerodim_as_scalar(dest)
 end
 
-function Base.setindex!(c::Column{T, N, S}, v, I::Vararg{Union{Int, Colon, OrdinalRange}, M}) where {T, N, M, S <: LibCasacore.ArrayColumn}
+function Base.setindex!(c::Column{T, N, <:LibCasacore.ArrayColumn}, v, i::IndexTypes, I::IndexTypes...) where {T, N}
+    I = (i, I...)
     @boundscheck checkbounds(c, I...)
 
     # We have to do a little extra work if we are forcing a multidim index
@@ -382,12 +398,12 @@ end
 # Setindex and getindex! for String type
 # This is special since it is not a primitive type and does not allow for simple bit coversions.
 
-function Base.getindex(c::Column{String, 1, S}, i::Int) where {S <: LibCasacore.ScalarColumn}
+function Base.getindex(c::Column{String, 1, <:LibCasacore.ScalarColumn}, i::Int)
     @boundscheck checkbounds(c, i)
     return String(LibCasacore.getindex(c.columnref, i - 1))
 end
 
-function Base.getindex(c::Column{String, 1, S}, i::Union{Colon, OrdinalRange}) where {S <: LibCasacore.ScalarColumn}
+function Base.getindex(c::Column{String, 1, <:LibCasacore.ScalarColumn}, i::Union{Colon, OrdinalRange})
     @boundscheck checkbounds(c, i)
     i, = to_indices(c, (i,))
     return map(i) do idx
@@ -409,13 +425,13 @@ function Base.getindex(c::Column{String, 1, S}, i::Union{Colon, OrdinalRange}) w
     return dest
 end
 
-function Base.setindex!(c::Column{String, 1, S}, v, i::Int) where {S <: LibCasacore.ScalarColumn}
+function Base.setindex!(c::Column{String, 1, <:LibCasacore.ScalarColumn}, v, i::Int)
     @boundscheck checkbounds(c, i)
     LibCasacore.put(c.columnref, i - 1, LibCasacore.String(string(v)))
     return nothing
 end
 
-function Base.setindex!(c::Column{String, 1, S}, v, i::Union{Colon, OrdinalRange}) where {S <: LibCasacore.ScalarColumn}
+function Base.setindex!(c::Column{String, 1, <:LibCasacore.ScalarColumn}, v, i::Union{Colon, OrdinalRange})
     @boundscheck checkbounds(c, i)
     i, = to_indices(c, (i,))
 
@@ -434,7 +450,7 @@ function Base.setindex!(c::Column{String, 1, S}, v, i::Union{Colon, OrdinalRange
     return nothing
 end
 
-function Base.getindex(c::Column{T, 1, S}, i::Int) where {T <: Array{String}, S <: LibCasacore.ArrayColumn}
+function Base.getindex(c::Column{T, 1, <:LibCasacore.ArrayColumn}, i::Int) where {T <: Array{String}}
     @boundscheck checkbounds(c, i)
     i, = to_indices(c, (i,))
 
@@ -456,7 +472,7 @@ function Base.getindex(c::Column{T, 1, S}, i::Int) where {T <: Array{String}, S 
     return map(String, reshape(dest, size(casacore_array)))
 end
 
-function Base.getindex(c::Column{T, 1, S}, i::Union{Colon, OrdinalRange}) where {T <: Array{String}, S <: LibCasacore.ArrayColumn}
+function Base.getindex(c::Column{<:Array{String}, 1, <:LibCasacore.ArrayColumn}, i::Union{Colon, OrdinalRange})
     @boundscheck checkbounds(c, i)
     i, = to_indices(c, (i,))
 
@@ -465,7 +481,7 @@ function Base.getindex(c::Column{T, 1, S}, i::Union{Colon, OrdinalRange}) where 
     end
 end
 
-function Base.setindex!(c::Column{T, 1, S}, v, i::Int) where {T <: Array{String}, S <: LibCasacore.ArrayColumn}
+function Base.setindex!(c::Column{<:Array{String}, 1, <:LibCasacore.ArrayColumn}, v, i::Int)
     @boundscheck checkbounds(c, i)
 
     # Check dimensionality of value matches column
@@ -485,7 +501,7 @@ function Base.setindex!(c::Column{T, 1, S}, v, i::Int) where {T <: Array{String}
     return nothing
 end
 
-function Base.setindex!(c::Column{T, 1, S}, v, i::Union{Colon, OrdinalRange}) where {T <: Array{String}, S <: LibCasacore.ArrayColumn}
+function Base.setindex!(c::Column{<:Array{String}, 1, <:LibCasacore.ArrayColumn}, v, i::Union{Colon, OrdinalRange})
     @boundscheck checkbounds(c, i)
     i, = to_indices(c, (i,))
 
@@ -495,7 +511,8 @@ function Base.setindex!(c::Column{T, 1, S}, v, i::Union{Colon, OrdinalRange}) wh
     return nothing
 end
 
-function Base.getindex(c::Column{T, N, S}, I::Vararg{Union{Int, Colon, OrdinalRange}}) where {T <: Union{String, Array{String}}, N, S <: LibCasacore.ArrayColumn}
+function Base.getindex(c::Column{T, N, <:LibCasacore.ArrayColumn}, i::IndexTypes, I::IndexTypes...) where {T <: Union{String, Array{String}}, N}
+    I = (i, I...)
     @boundscheck checkbounds(c, I...)
 
     # We have to do a little extra work if we are forcing a multidim index
@@ -532,11 +549,12 @@ function Base.getindex(c::Column{T, N, S}, I::Vararg{Union{Int, Colon, OrdinalRa
     return zerodim_as_scalar(dest)
 end
 
-function Base.setindex!(c::Column{T, N, S}, v::AbstractString, I::Vararg{Int}) where {T <: Union{String, Array{String}}, N, M, S <: LibCasacore.ArrayColumn}
-    c[I...] = [string(v)]
+function Base.setindex!(c::Column{<:Union{String, Array{String}}, N, <:LibCasacore.ArrayColumn}, v::AbstractString, i::Int, I::Int...) where N
+    c[i, I...] = [string(v)]
 end
 
-function Base.setindex!(c::Column{T, N, S}, v, I::Vararg{Union{Int, Colon, OrdinalRange}}) where {T <: Union{String, Array{String}}, N, S <: LibCasacore.ArrayColumn}
+function Base.setindex!(c::Column{T, N, <:LibCasacore.ArrayColumn}, v, i::IndexTypes, I::IndexTypes...) where {T <: Union{String, Array{String}}, N}
+    I = (i, I...)
     @boundscheck checkbounds(c, I...)
 
     # We have to do a little extra work if we are forcing a multidim index
