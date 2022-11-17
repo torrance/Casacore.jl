@@ -1,8 +1,6 @@
 name: Stable
 on:
   pull_request:
-    branches:
-      - main
   push:
     branches:
       - main
@@ -24,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          ref: 'v0.1.0'
+          ref: 'v0.2.0'
       - uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.version }}
