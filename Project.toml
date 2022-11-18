@@ -1,7 +1,7 @@
 name = "Casacore"
 uuid = "72bb1062-94f5-49fa-bb69-94b615203ad9"
 authors = ["Torrance Hodgson <torrance@pravic.xyz>", "and contributors"]
-version = "0.1.0"
+version = "0.2.0"
 
 [deps]
 CEnum = "fa961155-64e5-5f13-b03f-caf6b980ea82"
@@ -11,7 +11,7 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 casacorecxx_jll = "689e2960-4160-5310-ae7f-2d2095288874"
 
 [compat]
-casacorecxx_jll = "0.2"
+casacorecxx_jll = "0.2.1"
 CEnum = "0.4"
 CxxWrap = "0.12"
 julia = "1.8, 1.9"
