@@ -155,6 +155,9 @@ using Unitful
             deleteat!(table, 1:2:10_000)
             @test size(table, 1) == 5_000
 
+            deleteat!(table, 1)
+            @test size(table, 1) == 4_999
+
             resize!(table, 1_000)
             @test size(table, 1) == 1_000
         end

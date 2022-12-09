@@ -642,7 +642,13 @@ end
 function Base.deleteat!(x::Table, inds)
     inds = collect(UInt64, inds)
     if inds ⊈ 1:size(x, 1)
-        throw(BoundsError(x, inds))
+        throw(BoundsError(x, Int(inds)))
+    end
+
+    # If inds is a scalar, collect() creates an 0-dimensional array.
+    # But we need size() to report at least (1,)
+    if ndims(inds) == 0
+        inds = reshape(inds, 1)
     end
 
     # One to zero indexing
