@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - build-test
     tags: '*'
 jobs:
   test:
@@ -14,7 +15,8 @@ jobs:
       matrix:
         version:
           - '1.8'
-          - '1.9-nightly'
+          - '1.9'
+          - '1.10-nightly'
         os:
           - ubuntu-latest
         arch:
