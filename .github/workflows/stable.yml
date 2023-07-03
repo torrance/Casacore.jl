@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - buildtest
+      - build-test
     tags: '*'
 jobs:
   test:
