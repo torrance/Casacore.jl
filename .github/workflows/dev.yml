@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - julia-v1.10
     tags: '*'
 jobs:
   test:
