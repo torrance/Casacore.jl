@@ -33,7 +33,7 @@ products = Product[LibraryProduct("libcasacorecxx", :libcasacorecxx),]
 
 # Dependencies that must be installed before this package can be built
 dependencies = [Dependency("libcxxwrap_julia_jll"),
-                Dependency("casacore_jll"),
+                Dependency("casacore_jll", compat="3.5.1"),
                 BuildDependency("libjulia_jll")]
 
 # Build the tarballs, and possibly a `build.jl` as well.
