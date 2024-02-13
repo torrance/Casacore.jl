@@ -3,7 +3,7 @@
 using BinaryBuilder, Pkg
 
 name = "casacorecxx"
-version = v"0.2.1"
+version = v"0.2.2"
 
 # Collection of sources required to complete build
 sources = [DirectorySource("casacorecxx")]
