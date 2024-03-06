@@ -1,7 +1,7 @@
 name = "Casacore"
 uuid = "72bb1062-94f5-49fa-bb69-94b615203ad9"
 authors = ["Torrance Hodgson <torrance@pravic.xyz>", "and contributors"]
-version = "0.2.1"
+version = "0.3.0"
 
 [deps]
 CEnum = "fa961155-64e5-5f13-b03f-caf6b980ea82"
