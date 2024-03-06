@@ -32,7 +32,7 @@ platforms = expand_cxxstring_abis(platforms)
 products = Product[LibraryProduct("libcasacorecxx", :libcasacorecxx),]
 
 # Dependencies that must be installed before this package can be built
-dependencies = [Dependency("libcxxwrap_julia_jll"),
+dependencies = [Dependency("libcxxwrap_julia_jll", compat="0.11.2"),
                 Dependency("casacore_jll", compat="3.5.1"),
                 BuildDependency("libjulia_jll")]
 
