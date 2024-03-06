@@ -2,9 +2,7 @@ name: Dev
 on:
   pull_request:
   push:
-    branches:
-      - main
-      - julia-v1.10
+    branches: '*'
     tags: '*'
 jobs:
   test:
