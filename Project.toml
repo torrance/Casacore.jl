@@ -11,7 +11,7 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 casacorecxx_jll = "689e2960-4160-5310-ae7f-2d2095288874"
 
 [compat]
-casacorecxx_jll = "0.2.1"
+casacorecxx_jll = "0.3.0"
 CEnum = "0.5"
 CxxWrap = "0.14"
 julia = "1.8, 1.9, 1.10"
