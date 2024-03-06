@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          ref: 'v0.2.1'
+          ref: 'v0.3.0'
       - uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.version }}
