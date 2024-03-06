@@ -3,7 +3,7 @@
 using BinaryBuilder, Pkg
 
 name = "casacorecxx"
-version = v"0.2.1"
+version = v"0.3.0"
 
 # Collection of sources required to complete build
 sources = [DirectorySource("casacorecxx")]
@@ -32,11 +32,11 @@ platforms = expand_cxxstring_abis(platforms)
 products = Product[LibraryProduct("libcasacorecxx", :libcasacorecxx),]
 
 # Dependencies that must be installed before this package can be built
-dependencies = [Dependency("libcxxwrap_julia_jll"),
-                Dependency("casacore_jll"),
+dependencies = [Dependency("libcxxwrap_julia_jll", compat="0.11.2"),
+                Dependency("casacore_jll", compat="3.5.1"),
                 BuildDependency("libjulia_jll")]
 
 # Build the tarballs, and possibly a `build.jl` as well.
 build_tarballs(ARGS, name, version, sources, script, platforms, products, dependencies;
                julia_compat="1.8",
-               preferred_gcc_version=v"12") # We need C++17 for CxxWrap
+               preferred_gcc_version=v"7") # We need C++17 for CxxWrap

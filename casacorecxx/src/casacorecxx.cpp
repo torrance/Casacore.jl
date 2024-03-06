@@ -34,11 +34,11 @@ class JuliaState: public AppState {
 public:
     JuliaState(std::string measuresDir) : _measuresDir(measuresDir) {}
 
-    std::string measuresDir() const {
+    std::string measuresDir() const override {
         return _measuresDir;
     }
 
-    bool initialized() const {
+    bool initialized() const override {
         return true;
     }
 
@@ -135,7 +135,9 @@ JLCXX_MODULE define_julia_module(jlcxx::Module &mod) {
         .constructor<std::string>();
 
     mod.add_type<AppStateSource>("AppStateSource")
-        .method("initialize", &AppStateSource::initialize);
+        .method("initialize", [](AppState& appstate) {
+            AppStateSource::initialize(&appstate);
+        });
 
     /*
      * UTILITIES

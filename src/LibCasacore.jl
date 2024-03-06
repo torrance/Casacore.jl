@@ -4,7 +4,7 @@ using casacorecxx_jll
 using CxxWrap
 using Pkg.Artifacts
 
-@wrapmodule(libcasacorecxx)
+@wrapmodule(casacorecxx_jll.get_libcasacorecxx_path)
 
 function __init__()
     @initcxx
@@ -12,7 +12,7 @@ function __init__()
     # Configure Casacore data paths.
     # Set juliastate as global since casacore holds the pointer and expects the object to remain alive.
     global juliastate = JuliaState(artifact"measures")
-    initialize(CxxPtr(juliastate))
+    initialize(juliastate)
 end
 
 # Vector: implements iteration, indexing
